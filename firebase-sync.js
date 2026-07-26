@@ -158,7 +158,7 @@ const CloudSync = (() => {
     }
 
     const UPLOAD_COL_MAP = {
-        students: { id: 'id', name: 'nm', grade: 'gr', groupId: 'gid', qrCode: 'qr', phone: 'ph', parentPhone: 'pp', points: 'pt', notes: 'no', joinDate: 'jd', centerCode: 'cc', platformCode: 'pc', gender: 'gn', isExempt: 'ex' },
+        students: { id: 'id', name: 'nm', grade: 'gr', groupId: 'gid', qrCode: 'qr', phone: 'ph', parentPhone: 'pp', points: 'pt', notes: 'no', joinDate: 'jd', centerCode: 'cc', platformCode: 'pc', gender: 'gn', isExempt: 'ex', images: 'img' },
         attendance: { id: 'id', studentId: 'sid', date: 'd', status: 's', sessionId: 'ssid', grade: 'gr', groupId: 'gid' },
         payments: { id: 'id', studentId: 'sid', date: 'd', amount: 'am', category: 'cat', cycleId: 'cid', month: 'mo', year: 'yr', isExemption: 'xm', discount: 'dc', platformFee: 'pf', notes: 'no', groupId: 'gid', grade: 'gr' },
         expenses: { id: 'id', date: 'd', amount: 'am', description: 'ds', grade: 'gr', groupId: 'gid', category: 'cat' },

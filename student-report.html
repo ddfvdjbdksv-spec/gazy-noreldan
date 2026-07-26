@@ -107,6 +107,10 @@
         </div>
     </div>
     <div class="main">
+        <div class="card" id="student-gallery-card" style="display:none;">
+            <div class="card-title"><i class="fas fa-images"></i> صور الطالب</div>
+            <div id="student-gallery-inner" style="display:flex;gap:.6rem;flex-wrap:wrap;"></div>
+        </div>
         <div class="card" style="padding:1rem 1.5rem;">
             <div class="period-bar">
                 <button class="nav-btn" onclick="stepPeriod(1)" title="الشهر السابق">
@@ -443,9 +447,39 @@ function buildPeriods(){
 
 function changePeriod(i){periodIdx=Number(i);renderReport();}
 function stepPeriod(d){const n=periodIdx+d;if(n<0||n>=periods.length)return;periodIdx=n;document.getElementById('period-select').value=n;renderReport();}
+function cldThumb(url,size){
+    if(!url||typeof url!=='string'||!url.includes('/upload/'))return url;
+    return url.replace('/upload/', `/upload/w_${size},h_${size},c_fill,g_auto,f_auto,q_auto/`);
+}
+function renderStudentGallery(s){
+    const card=document.getElementById('student-gallery-card');
+    const inner=document.getElementById('student-gallery-inner');
+    const images=Array.isArray(s.images)?s.images:[];
+    if(!images.length){ if(card) card.style.display='none'; return; }
+    if(card) card.style.display='block';
+    if(inner){
+        inner.innerHTML=images.map(img=>
+            `<img src="${cldThumb(img.url,150)}" alt="صورة الطالب" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:12px;cursor:zoom-in;border:1px solid #e2e8f0;" onclick="openStudentLightbox('${img.url}')">`
+        ).join('');
+    }
+}
+function openStudentLightbox(url){
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+    box.innerHTML=`<img src="${url}" style="max-width:92vw;max-height:92vh;border-radius:8px;" alt="عرض الصورة بالحجم الكامل">`;
+    box.addEventListener('click',()=>box.remove());
+    document.body.appendChild(box);
+}
 function renderHeader(){
     const s=studentData,g=allData.groups.find(x=>String(x.id)===String(s.groupId));
-    document.getElementById('hdr-avatar').textContent=s.name?s.name.charAt(0):'ط';
+    const avatarEl=document.getElementById('hdr-avatar');
+    const primaryImg=(Array.isArray(s.images)&&s.images[0])?s.images[0].url:null;
+    if(primaryImg){
+        avatarEl.innerHTML=`<img src="${cldThumb(primaryImg,140)}" alt="${s.name||''}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;cursor:zoom-in;" onclick="openStudentLightbox('${primaryImg}')">`;
+    }else{
+        avatarEl.textContent=s.name?s.name.charAt(0):'ط';
+    }
+    renderStudentGallery(s);
     document.getElementById('hdr-name').textContent=s.name||'---';
     document.getElementById('hdr-sub').textContent='كود: '+(s.qrCode||s.id)+' • هاتف: '+(s.phone||'---');
     document.getElementById('hdr-group').innerHTML='<i class="fas fa-users"></i> '+(g?g.name:'---');

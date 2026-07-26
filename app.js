@@ -2191,10 +2191,13 @@ async function handleStudentSubmit(printAfter = false) {
         if (!StorageEngine.db) await StorageEngine.init();
 
         // ── الكود مولَّد تلقائيًا ومضمون التفرّد، يُحفظ كما هو ──
+        const studentImages = (typeof StudentImages !== 'undefined') ? StudentImages.getImages('std-images-uploader') : [];
+
         const student = {
             id: Date.now(), name, phone, grade: targetGrade, groupId, parentPhone: parent,
             qrCode: code,
-            balance: 0, points: 0, joinDate: new Date().toISOString()
+            balance: 0, points: 0, joinDate: new Date().toISOString(),
+            images: studentImages
         };
 
         db.students.push(student);
@@ -2232,6 +2235,7 @@ async function handleStudentSubmit(printAfter = false) {
         document.getElementById('std-phone').value = '';
         document.getElementById('std-parent').value = '';
         document.getElementById('std-group').value = '';
+        if (typeof StudentImages !== 'undefined') StudentImages.destroy('std-images-uploader');
 
         toggleModal('student-modal', false);
         showNotification('تم إضافة الطالب وحفظه بنجاح', 'success');
@@ -2305,7 +2309,10 @@ async function renderStudents() {
 
         html += groups[groupName].map(s => `
         <tr class="fade-in">
-            <td style="padding-right: 2rem;"><strong>${s.name}</strong></td>
+            <td style="padding-right: 2rem; display:flex; align-items:center; gap:.6rem;">
+                <span class="avatar" style="width:34px; height:34px; font-size:.9rem; flex-shrink:0;">${(typeof StudentImages !== 'undefined') ? StudentImages.renderAvatarHtml(s, 34) : s.name.charAt(0)}</span>
+                <strong>${s.name}</strong>
+            </td>
             <td>${s.phone}</td>
             <td>${s.parentPhone}</td>
             <td>${s.joinDate ? new Date(s.joinDate).toLocaleDateString('ar-EG') : '---'}</td>
@@ -2530,6 +2537,7 @@ function openAddStudentForGroup() {
         groupSelect.value = '';
     }
 
+    if (typeof StudentImages !== 'undefined') StudentImages.init('std-images-uploader', []);
     toggleModal('student-modal', true);
 }
 
@@ -2549,6 +2557,7 @@ function openAddStudentModal() {
         groupSelect.value = '';
     }
 
+    if (typeof StudentImages !== 'undefined') StudentImages.init('std-images-uploader', []);
     toggleModal('student-modal', true);
 }
 
@@ -6519,7 +6528,16 @@ function viewDetailedProfile(id) {
     if (!s) return;
 
     const group = db.groups.find(g => g.id == s.groupId);
-    document.getElementById('prof-avatar-char').innerText = s.name.charAt(0);
+    const profAvatarEl = document.getElementById('prof-avatar-char')?.closest('.avatar');
+    if (profAvatarEl && typeof StudentImages !== 'undefined') {
+        profAvatarEl.innerHTML = StudentImages.renderAvatarHtml(s, 80);
+    } else {
+        document.getElementById('prof-avatar-char').innerText = s.name.charAt(0);
+    }
+    const profImagesSection = document.getElementById('prof-images-section');
+    if (profImagesSection && typeof StudentImages !== 'undefined') {
+        profImagesSection.innerHTML = `<h3 style="margin-bottom:.6rem;"><i class="fas fa-images"></i> صور الطالب</h3>${StudentImages.renderGalleryHtml(s)}`;
+    }
     document.getElementById('prof-name').innerText = s.name;
     const jDateRaw = s.joinDate || s.id; // Use id as fallback for old records
     const jDateObj = new Date(jDateRaw);
@@ -9035,6 +9053,10 @@ function printExpensesReport() {
 async function deleteStudent(id) {
     if (!rbacGuardDelete('حذف الطالب')) return;
     if (!confirm('هل أنت متأكد من حذف هذا الطالب نهائياً؟')) return;
+    const studentBeingDeleted = db.students.find(s => String(s.id) === String(id));
+    if (typeof StudentImages !== 'undefined' && studentBeingDeleted) {
+        StudentImages.deleteStudentImages(studentBeingDeleted).catch(err => console.warn('[StudentImages] cleanup warning:', err));
+    }
     db.students = db.students.filter(s => String(s.id) !== String(id));
     await StorageEngine.delete('students', id);
     if (typeof CloudSync !== 'undefined' && CloudSync.deleteRecord) {
@@ -9057,6 +9079,9 @@ async function clearAllStudents() {
         // مسح جميع الطلاب من IndexedDB وتدميرهم من السحابة
         const allStudents = await StorageEngine.getAll('students');
         for (const student of allStudents) {
+            if (typeof StudentImages !== 'undefined') {
+                StudentImages.deleteStudentImages(student).catch(err => console.warn('[StudentImages] cleanup warning:', err));
+            }
             await StorageEngine.delete('students', student.id);
             if (typeof CloudSync !== 'undefined' && CloudSync.deleteRecord) {
                 CloudSync.deleteRecord('students', student.id);
@@ -12044,6 +12069,7 @@ async function editStudent(id) {
     const filteredGroups = db.groups.filter(g => g.grade == currentGrade);
     groupSelect.innerHTML = filteredGroups.map(g => `<option value="${g.id}" ${g.id == student.groupId ? 'selected' : ''}>${g.name} (${g.time})</option>`).join('');
 
+    if (typeof StudentImages !== 'undefined') StudentImages.init('edit-std-images-uploader', student.images || []);
     toggleModal('edit-student-modal', true);
 }
 
@@ -12075,12 +12101,20 @@ async function handleStudentUpdate(printAfter = false) {
     student.phone = phone;
     student.groupId = groupId;
     student.parentPhone = parent;
+    if (typeof StudentImages !== 'undefined') {
+        student.images = StudentImages.getImages('edit-std-images-uploader');
+    }
 
     await StorageEngine.save('students', student);
     const studentCloudOk = await waitForCloudTableSync('students');
 
     const idx = db.students.findIndex(s => s.id == id);
     if (idx !== -1) db.students[idx] = student;
+
+    if (typeof StudentImages !== 'undefined') {
+        await StudentImages.flushDeletions('edit-std-images-uploader');
+        StudentImages.destroy('edit-std-images-uploader');
+    }
 
     if (studentCloudOk) {
         showNotification('تم تحديث بيانات الطالب في قاعدة البيانات بنجاح', 'success');

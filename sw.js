@@ -9,7 +9,7 @@
 //    5. أو: يُطبَّق تلقائياً بعد 10 ثوانٍ بدون تدخّل
 // ============================================================
 
-const CACHE_VERSION = 'edarat-eldroos-pwa-v41';
+const CACHE_VERSION = 'edarat-eldroos-pwa-v42';
 
 const APP_SHELL = [
   './',
@@ -25,6 +25,7 @@ const APP_SHELL = [
   './transfer-student.js',
   './code-generator.js',
   './grade-mapping.js',
+  './student-images.js',
   './manifest.webmanifest',
   './app-icon-192.png',
   './app-icon-512.png',
