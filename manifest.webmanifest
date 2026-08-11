@@ -1,7 +1,7 @@
 {
-  "name": "سنتر البنا",
-  "short_name": "سنتر البنا",
-  "description": "سنتر البنا لإعداد الأوائل — نظام الإدارة المتكامل",
+  "name": "غازي نور الدين",
+  "short_name": "غازي نور الدين",
+  "description": "نظام إدارة غازي نور الدين المتكامل",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",

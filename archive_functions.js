@@ -73,7 +73,7 @@ function viewArchivedCycle(cycleId) {
                 code: s.qrCode,
                 amount: lessonPay.amount,
                 date: lessonPay.date,
-                collectedBy: lessonPay.collectedBy || null
+                recordedBy: lessonPay.recordedBy || '—'
             });
         }
 
@@ -87,8 +87,7 @@ function viewArchivedCycle(cycleId) {
                         course: ps.course_title,
                         amount: ps.amount,
                         date: ps.payment_date,
-                        sync: ps.sync_status,
-                        collectedBy: ps.collectedBy || null
+                        sync: ps.sync_status
                     });
                 });
             } else if (platformPay) {
@@ -99,8 +98,7 @@ function viewArchivedCycle(cycleId) {
                     course: platformPay.platformCourseTitle || (cycle.activePlatformCourse ? cycle.activePlatformCourse.courseTitle : 'كورس المنصة'),
                     amount: platformPay.amount,
                     date: platformPay.date,
-                    sync: 1,
-                    collectedBy: platformPay.collectedBy || null
+                    sync: 1
                 });
             }
         }
@@ -110,27 +108,20 @@ function viewArchivedCycle(cycleId) {
             let type = '';
             let totalAmount = 0;
             let date = '';
-            const collectors = new Set();
 
             if (hasLesson && hasPlatform) {
                 type = 'اشتراك درس + منصة';
                 const platformAmt = studentPlatformSubs.reduce((sum, ps) => sum + ps.amount, 0) || (platformPay ? platformPay.amount : 0);
                 totalAmount = lessonPay.amount + platformAmt;
                 date = lessonPay.date;
-                if (lessonPay.collectedBy) collectors.add(lessonPay.collectedBy);
-                studentPlatformSubs.forEach(ps => { if (ps.collectedBy) collectors.add(ps.collectedBy); });
-                if (platformPay && platformPay.collectedBy) collectors.add(platformPay.collectedBy);
             } else if (hasLesson) {
                 type = 'اشتراك درس';
                 totalAmount = lessonPay.amount;
                 date = lessonPay.date;
-                if (lessonPay.collectedBy) collectors.add(lessonPay.collectedBy);
             } else {
                 type = 'اشتراك منصة';
                 totalAmount = studentPlatformSubs.reduce((sum, ps) => sum + ps.amount, 0) || (platformPay ? platformPay.amount : 0);
                 date = studentPlatformSubs[0] ? studentPlatformSubs[0].payment_date : (platformPay ? platformPay.date : '');
-                studentPlatformSubs.forEach(ps => { if (ps.collectedBy) collectors.add(ps.collectedBy); });
-                if (platformPay && platformPay.collectedBy) collectors.add(platformPay.collectedBy);
             }
 
             combinedPaidList.push({
@@ -139,12 +130,11 @@ function viewArchivedCycle(cycleId) {
                 type: type,
                 totalAmount: totalAmount,
                 date: date,
-                collectedBy: collectors.size ? [...collectors].join(' + ') : null
+                recordedBy: (lessonPay && lessonPay.recordedBy) || (platformPay && platformPay.recordedBy) || '—'
             });
         } else {
             // د. الطلاب غير الدافعين
             unpaidList.push({
-                id: s.id,
                 name: s.name,
                 code: s.qrCode
             });
@@ -370,8 +360,8 @@ function viewArchivedCycle(cycleId) {
                                 <th>كود الطالب</th>
                                 <th>نوع العملية</th>
                                 <th>إجمالي المدفوع</th>
+                                <th>تم التحصيل بواسطة</th>
                                 <th>تاريخ الدفع</th>
-                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -389,8 +379,8 @@ function viewArchivedCycle(cycleId) {
                                         </span>
                                     </td>
                                     <td style="font-weight:bold; color:var(--primary);">${item.totalAmount} ج.م</td>
+                                    <td style="font-size:0.85rem;">${item.recordedBy}</td>
                                     <td>${new Date(item.date).toLocaleDateString('ar-EG')}</td>
-                                    <td style="color:var(--text-muted); font-size:.85rem;">${item.collectedBy || '—'}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="6" style="text-align:center; padding:2rem;">لا توجد عمليات سداد مسجلة بعد</td></tr>'}
                         </tbody>
@@ -407,8 +397,8 @@ function viewArchivedCycle(cycleId) {
                                 <th>كود الطالب</th>
                                 <th>الشهر</th>
                                 <th>قيمة الاشتراك</th>
+                                <th>تم التحصيل بواسطة</th>
                                 <th>تاريخ الدفع</th>
-                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -418,8 +408,8 @@ function viewArchivedCycle(cycleId) {
                                     <td style="font-family:monospace; color:var(--text-muted);">${item.code}</td>
                                     <td>${cycle.title}</td>
                                     <td style="font-weight:bold; color:var(--accent);">${item.amount} ج.م</td>
+                                    <td style="font-size:0.85rem;">${item.recordedBy}</td>
                                     <td>${new Date(item.date).toLocaleDateString('ar-EG')}</td>
-                                    <td style="color:var(--text-muted); font-size:.85rem;">${item.collectedBy || '—'}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="6" style="text-align:center; padding:2rem;">لا توجد اشتراكات دروس مسجلة بعد</td></tr>'}
                         </tbody>
@@ -438,7 +428,6 @@ function viewArchivedCycle(cycleId) {
                                 <th>قيمة اشتراك المنصة</th>
                                 <th>تاريخ الدفع</th>
                                 <th>حالة المزامنة</th>
-                                <th>بواسطة</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -455,9 +444,8 @@ function viewArchivedCycle(cycleId) {
                                             : '<span style="color:var(--warning); font-weight:700;"><i class="fas fa-clock"></i> معلقة محلياً</span>'
                                         }
                                     </td>
-                                    <td style="color:var(--text-muted); font-size:.85rem;">${item.collectedBy || '—'}</td>
                                 </tr>
-                            `).join('') || '<tr><td colspan="7" style="text-align:center; padding:2rem;">لا توجد اشتراكات منصة مسجلة بعد</td></tr>'}
+                            `).join('') || '<tr><td colspan="6" style="text-align:center; padding:2rem;">لا توجد اشتراكات منصة مسجلة بعد</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -465,16 +453,12 @@ function viewArchivedCycle(cycleId) {
                 <!-- 4. الطلاب غير الدافعين -->
                 <div id="unpaid-tab" class="tab-content">
                     <h3 style="margin-bottom:15px; border-right:4px solid var(--danger); padding-right:10px; color:var(--danger)">قائمة الطلاب المتأخرين عن الدفع</h3>
-                    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:10px;">
-                        <i class="fas fa-info-circle"></i> يمكنك الآن تسجيل سداد أي طالب متأخر بأثر رجعي عن هذا الشهر مباشرة من هنا، وستتحدث كل التقارير والإحصائيات تلقائياً.
-                    </p>
                     <table>
                         <thead>
                             <tr>
                                 <th>اسم الطالب</th>
                                 <th>كود الطالب</th>
                                 <th>الحالة</th>
-                                <th class="no-print">إجراء</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -483,31 +467,14 @@ function viewArchivedCycle(cycleId) {
                                     <td><strong>${item.name}</strong></td>
                                     <td style="font-family:monospace; color:var(--text-muted);">${item.code}</td>
                                     <td style="color:var(--danger); font-weight:700;"><i class="fas fa-exclamation-triangle"></i> لم يسدد أي اشتراك</td>
-                                    <td class="no-print">
-                                        <button class="tab-btn" style="background:var(--accent); color:#fff; padding:6px 14px;" onclick="_markArchivedStudentPaid(${cycle.id}, ${item.id})">
-                                            <i class="fas fa-check-circle"></i> تسجيل السداد الآن
-                                        </button>
-                                    </td>
                                 </tr>
-                            `).join('') || '<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--accent); font-weight:700;"><i class="fas fa-trophy"></i> جميع الطلاب قاموا بالسداد بنجاح!</td></tr>'}
+                            `).join('') || '<tr><td colspan="3" style="text-align:center; padding:2rem; color:var(--accent); font-weight:700;"><i class="fas fa-trophy"></i> جميع الطلاب قاموا بالسداد بنجاح!</td></tr>'}
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <script>
-                function _markArchivedStudentPaid(cycleId, studentId) {
-                    if (!window.opener || window.opener.closed) {
-                        alert('تعذر الاتصال بالنافذة الرئيسية للبرنامج. أعد فتح الأرشيف من الصفحة الرئيسية.');
-                        return;
-                    }
-                    if (!confirm('هل تريد تسجيل سداد هذا الطالب عن هذا الشهر الآن؟ سيتم تحديث كل التقارير تلقائياً.')) return;
-                    const ok = window.opener.recordArchivedMonthPayment(cycleId, studentId);
-                    if (ok) {
-                        window.opener.viewArchivedCycle(cycleId);
-                        window.close();
-                    }
-                }
                 function openTab(evt, tabName) {
                     var i, tabcontent, tablinks;
                     tabcontent = document.getElementsByClassName("tab-content");
