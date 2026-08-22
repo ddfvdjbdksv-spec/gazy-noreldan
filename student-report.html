@@ -107,10 +107,6 @@
         </div>
     </div>
     <div class="main">
-        <div class="card" id="student-gallery-card" style="display:none;">
-            <div class="card-title"><i class="fas fa-images"></i> صور الطالب</div>
-            <div id="student-gallery-inner" style="display:flex;gap:.6rem;flex-wrap:wrap;"></div>
-        </div>
         <div class="card" style="padding:1rem 1.5rem;">
             <div class="period-bar">
                 <button class="nav-btn" onclick="stepPeriod(1)" title="الشهر السابق">
@@ -157,16 +153,21 @@
         <div class="page-footer">
             تقرير أداء الطالب — يتحدث تلقائياً مع كل تغيير في البيانات<br>
             <span id="last-update" style="font-size:0.72rem;margin-top:0.2rem;display:block;"></span>
-            <div class="developer-credit">
-                تم التصميم والتطوير بواسطة
-                <a href="https://wa.me/201001352771" target="_blank" rel="noopener">ENG Ahmed Amr Abo Elhag</a>
-                <span dir="ltr">01001352771</span>
-            </div>
         </div>
+        <a href="https://wa.me/201001352771" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;margin:1.2rem 1rem 1.5rem;">
+            <div style="background:linear-gradient(135deg,#0f4c81 0%,#1a6fbf 100%);border-radius:18px;padding:1.4rem 1.5rem;text-align:center;box-shadow:0 4px 20px rgba(15,76,129,0.25);display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
+                <div style="font-size:0.8rem;color:rgba(255,255,255,0.75);font-weight:600;letter-spacing:0.03em;">تم التصميم والتطوير بواسطة</div>
+                <div style="font-size:1.15rem;color:#ffffff;font-weight:800;letter-spacing:0.01em;">المهندس أحمد عمرو أبو الحاج</div>
+                <div style="display:flex;align-items:center;gap:0.5rem;background:rgba(255,255,255,0.15);border-radius:30px;padding:0.4rem 1.1rem;margin-top:0.2rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.523 5.845L.057 23.492a.5.5 0 0 0 .611.611l5.647-1.466A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.9a9.887 9.887 0 0 1-5.031-1.374l-.361-.214-3.741.981.998-3.645-.235-.374A9.862 9.862 0 0 1 2.1 12C2.1 6.533 6.533 2.1 12 2.1c5.467 0 9.9 4.433 9.9 9.9 0 5.467-4.433 9.9-9.9 9.9z"/></svg>
+                    <span style="color:#ffffff;font-size:1rem;font-weight:700;direction:ltr;">01001352771</span>
+                </div>
+            </div>
+        </a>
     </div>
 </div>
-<script src="firebase-app-compat.js"></script>
-<script src="firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script>
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBMVoFA1hTMIGhQ6BO83fhDfniPcIVsraE",
@@ -210,19 +211,57 @@ function matchesStudent(s, queryStr) {
 
 window.addEventListener('DOMContentLoaded',async()=>{
     const p=new URLSearchParams(window.location.search);
-    studentId=p.get('student');
+    studentId=p.get('student') || p.get('id') || p.get('code');
     if(!studentId){showError('لا يوجد معرّف طالب في الرابط');return;}
     studentId=isNaN(Number(studentId))?studentId:Number(studentId);
     try{
-        firebase.initializeApp(FIREBASE_CONFIG);
-        fsDB=firebase.firestore();
-        await loadAll();
-        attachListeners();
-    }catch(err){showError('تعذّر الاتصال: '+(err.message||err));}
+        if (typeof firebase !== 'undefined' && firebase.apps) {
+            const app = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+            fsDB = app.firestore();
+            await loadAll();
+            attachListeners();
+        } else {
+            // Offline or fallback to LocalStorage
+            loadFromLocalStorage();
+        }
+    }catch(err){
+        console.warn('Firebase error, falling back to local data', err);
+        loadFromLocalStorage();
+    }
 });
+
+function loadFromLocalStorage() {
+    // حاول أولاً من localStorage بمفاتيح متعددة
+    const keys = ['abqareya_db', 'center_db', 'edu_master_db'];
+    for (const key of keys) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            const found = (parsed.students || []).find(s => matchesStudent(s, studentId));
+            if (found) {
+                allData = { ...allData, ...parsed };
+                studentData = found;
+                renderHeader(); buildPeriods(); renderReport(); showPage();
+                return;
+            }
+        } catch(e) {}
+    }
+    // ✅ حتى لو ما لقيناش بيانات محلية، لو الطالب أُحضر من Firebase بنعرضه مباشرة
+    // (هذا الحال يحصل لو الطالب مسجل بس ما عندوش حضور أو غياب بعد)
+    if (studentData) {
+        renderHeader(); buildPeriods(); renderReport(); showPage();
+        return;
+    }
+    showError('لم يتم العثور على بيانات هذا الطالب. تأكد من صحة الرابط.');
+}
 
 async function loadAll(){
     const tables=['students','groups','attendance','absenceSessions','exams','scores','payments','cycles'];
+    const extraCollections = {
+        'students': 'device_students',
+        'groups': 'device_groups'
+    };
     const tenantSet = new Set([resolveTenantId()]);
 
     try {
@@ -237,7 +276,6 @@ async function loadAll(){
     await Promise.all(tables.map(async t => {
         let recordsMap = new Map();
 
-        // 1. القراءة من جميع مجموعات المستأجرين _tenants/{tenantId}/{t}
         for (const tid of discoveredTenants) {
             try {
                 const snap = await fsDB.collection('_tenants').doc(tid).collection(t).get();
@@ -248,21 +286,32 @@ async function loadAll(){
             } catch(e) {}
         }
 
-        // 2. القراءة من المجموعات الرئيسية (Root Collection) كـ Fallback
         try {
             const rSnap = await fsDB.collection(t).get();
             rSnap.forEach(d => {
                 const id = isNaN(Number(d.id)) ? d.id : Number(d.id);
-                if (!recordsMap.has(String(id))) {
-                    recordsMap.set(String(id), { ...d.data(), id });
-                }
+                // ✅ root collections تُعطى الأولوية — هي المصدر الرئيسي
+                // لبيانات "رفع كل البيانات" ويجب أن تتجاوز أي بيانات من _tenants
+                recordsMap.set(String(id), { ...d.data(), id });
             });
-        } catch(e) {}
+        } catch(e) { console.warn(`[student-report] خطأ في قراءة ${t}:`, e); }
+
+        // ── أيضاً نبحث في المجموعات البديلة (مثل device_students) ──
+        if (extraCollections[t]) {
+            try {
+                const exSnap = await fsDB.collection(extraCollections[t]).get();
+                exSnap.forEach(d => {
+                    const id = isNaN(Number(d.id)) ? d.id : Number(d.id);
+                    if (!recordsMap.has(String(id))) {
+                        recordsMap.set(String(id), { ...d.data(), id });
+                    }
+                });
+            } catch(e) {}
+        }
 
         allData[t] = Array.from(recordsMap.values());
     }));
 
-    // قراءة الإعدادات settings
     for (const tid of discoveredTenants) {
         try {
             const sDoc = await fsDB.collection('_tenants').doc(tid).collection('meta').doc('settings').get();
@@ -275,8 +324,14 @@ async function loadAll(){
     } catch(e) {}
 
     studentData = allData.students.find(s => matchesStudent(s, studentId));
-    if(!studentData){showError('لم يتم العثور على بيانات هذا الطالب');return;}
-    renderHeader();buildPeriods();renderReport();showPage();
+    if(!studentData){
+        // ✅ الطالب غير موجود في Firebase — نحاول localStorage كـ fallback
+        // لكن حتى لو ما لقيناه، نعرض صفحة فارغة بدل رسالة خطأ
+        loadFromLocalStorage();
+        return;
+    }
+    // ✅ الطالب موجود — نعرض صفحته حتى لو مفيش حضور أو غياب أو امتحانات
+    renderHeader(); buildPeriods(); renderReport(); showPage();
 }
 
 function attachListeners(){
@@ -349,7 +404,6 @@ function buildPeriods(){
     const s=studentData;if(!s)return;
     const ARABIC_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-    // ── 1. بناء قائمة الدورات الفعلية المزامنة مع الخزنة والمالية ──
     const cycles = [];
     (allData.cycles || []).forEach(c => {
         const sameGroup = !c.groupId || String(c.groupId) === String(s.groupId);
@@ -378,7 +432,6 @@ function buildPeriods(){
     cycles.sort((a, b) => a.start - b.start);
     const findCycleFor = (d) => cycles.find(c => d >= c.start && d < c.end) || null;
 
-    // ── 2. تجميع البيانات اليتيمة كـ Fallback ──
     const monthlyFallback = new Map();
     const addFallback = (d) => {
         if (!d || isNaN(d.getTime())) return;
@@ -404,7 +457,6 @@ function buildPeriods(){
         .filter(e => String(e.grade) === String(s.grade) && (!e.groupId || String(e.groupId) === String(s.groupId)))
         .forEach(e => addFallback(new Date(e.id)));
 
-    // ── 3. تجميع الفترات الفعالة والـ Fallback ──
     const resultPeriods = cycles.map(c => ({
         key: c.key,
         label: c.label || `${ARABIC_MONTHS[c.start.getMonth()]} ${c.start.getFullYear()}`,
@@ -419,6 +471,7 @@ function buildPeriods(){
         resultPeriods.push({ key: `month-${key}`, label: `${ARABIC_MONTHS[month]} ${year}`, start, end, year, month });
     });
 
+    // ── دايماً أضف الشهر الحالي عشان الطالب الجديد يظهر حتى لو مفيش بيانات ──
     const now = new Date();
     if (!findCycleFor(now)) {
         const y = now.getFullYear(), m = now.getMonth();
@@ -430,8 +483,20 @@ function buildPeriods(){
         }
     }
 
+    // ── لو ما زال الـ periods فاضي، أضف الشهر الحالي كـ fallback مضمون ──
+    if (resultPeriods.length === 0) {
+        const y = now.getFullYear(), m = now.getMonth();
+        resultPeriods.push({
+            key: `month-${periodKey(y, m)}`,
+            label: `${ARABIC_MONTHS[m]} ${y}`,
+            start: new Date(y, m, 1),
+            end: new Date(y, m + 1, 1),
+            year: y, month: m
+        });
+    }
+
     const prevKey = periods[periodIdx]?.key;
-    resultPeriods.sort((a, b) => b.start - a.start); // الأحدث أولاً
+    resultPeriods.sort((a, b) => b.start - a.start);
     periods = resultPeriods;
 
     if (prevKey) {
@@ -447,39 +512,9 @@ function buildPeriods(){
 
 function changePeriod(i){periodIdx=Number(i);renderReport();}
 function stepPeriod(d){const n=periodIdx+d;if(n<0||n>=periods.length)return;periodIdx=n;document.getElementById('period-select').value=n;renderReport();}
-function cldThumb(url,size){
-    if(!url||typeof url!=='string'||!url.includes('/upload/'))return url;
-    return url.replace('/upload/', `/upload/w_${size},h_${size},c_fill,g_auto,f_auto,q_auto/`);
-}
-function renderStudentGallery(s){
-    const card=document.getElementById('student-gallery-card');
-    const inner=document.getElementById('student-gallery-inner');
-    const images=Array.isArray(s.images)?s.images:[];
-    if(!images.length){ if(card) card.style.display='none'; return; }
-    if(card) card.style.display='block';
-    if(inner){
-        inner.innerHTML=images.map(img=>
-            `<img src="${cldThumb(img.url,150)}" alt="صورة الطالب" loading="lazy" style="width:80px;height:80px;object-fit:cover;border-radius:12px;cursor:zoom-in;border:1px solid #e2e8f0;" onclick="openStudentLightbox('${img.url}')">`
-        ).join('');
-    }
-}
-function openStudentLightbox(url){
-    const box=document.createElement('div');
-    box.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
-    box.innerHTML=`<img src="${url}" style="max-width:92vw;max-height:92vh;border-radius:8px;" alt="عرض الصورة بالحجم الكامل">`;
-    box.addEventListener('click',()=>box.remove());
-    document.body.appendChild(box);
-}
 function renderHeader(){
-    const s=studentData,g=allData.groups.find(x=>String(x.id)===String(s.groupId));
-    const avatarEl=document.getElementById('hdr-avatar');
-    const primaryImg=(Array.isArray(s.images)&&s.images[0])?s.images[0].url:null;
-    if(primaryImg){
-        avatarEl.innerHTML=`<img src="${cldThumb(primaryImg,140)}" alt="${s.name||''}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;cursor:zoom-in;" onclick="openStudentLightbox('${primaryImg}')">`;
-    }else{
-        avatarEl.textContent=s.name?s.name.charAt(0):'ط';
-    }
-    renderStudentGallery(s);
+    const s=studentData,g=(allData.groups || []).find(x=>String(x.id)===String(s.groupId));
+    document.getElementById('hdr-avatar').textContent=s.name?s.name.charAt(0):'ط';
     document.getElementById('hdr-name').textContent=s.name||'---';
     document.getElementById('hdr-sub').textContent='كود: '+(s.qrCode||s.id)+' • هاتف: '+(s.phone||'---');
     document.getElementById('hdr-group').innerHTML='<i class="fas fa-users"></i> '+(g?g.name:'---');
@@ -488,8 +523,16 @@ function renderHeader(){
     document.title='تقرير أداء — '+s.name;
 }
 function renderReport(){
-    const s=studentData;if(!s||!periods.length)return;
-    const per=periods[periodIdx];if(!per)return;
+    const s=studentData;if(!s)return;
+    // لو periods فاضية، ابنيها قبل ما نعرض
+    if(!periods.length){ buildPeriods(); }
+    const per=periods[periodIdx];
+    // لو لسه فاضية بعد buildPeriods (مش المفروض)، اعرض حالة فارغة بدل ما ترجع
+    if(!per){
+        ['att-present','att-absent','att-total','att-pct'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='0'; });
+        const bar=document.getElementById('att-bar'); if(bar) bar.style.width='0%';
+        return;
+    }
     const st=getStudentSettings(s);
     const banner=document.getElementById('period-status-banner');
     if(banner){
@@ -500,7 +543,7 @@ function renderReport(){
         }
     }
     const{start,end}=per;
-    const atts=allData.attendance.filter(a=>String(a.studentId)===String(s.id)&&new Date(a.date)>=start&&new Date(a.date)<end);
+    const atts=(allData.attendance||[]).filter(a=>String(a.studentId)===String(s.id)&&new Date(a.date)>=start&&new Date(a.date)<end);
     const sessIds=new Set(atts.filter(a=>a.sessionId).map(a=>String(a.sessionId)));
     const xP=(allData.absenceSessions||[]).filter(ss=>{
         const d=new Date(ss.date);if(d<start||d>=end)return false;
@@ -524,13 +567,13 @@ function renderReport(){
     document.getElementById('att-total').textContent=tot;
     document.getElementById('att-bar').style.width=pct+'%';
     document.getElementById('att-pct').textContent=pct+'%';
-    const exs=allData.exams.filter(e=>{
+    const exs=(allData.exams||[]).filter(e=>{
         if(String(e.grade)!==String(s.grade))return false;
         if(e.groupId&&String(e.groupId)!==String(s.groupId))return false;
         const d=new Date(e.id);return d>=start&&d<end;
     }).sort((a,b)=>a.id-b.id);
     const rows=exs.map(ex=>{
-        const sc=allData.scores.find(x=>x.examId===ex.id&&String(x.studentId)===String(s.id));
+        const sc=(allData.scores||[]).find(x=>x.examId===ex.id&&String(x.studentId)===String(s.id));
         if(!sc)return{ex,st:'unrecorded',mk:null};
         if(sc.mark===-1)return{ex,st:'absent',mk:null};
         return{ex,st:'present',mk:sc.mark};
@@ -551,7 +594,7 @@ function renderReport(){
             return`<div class="exam-row"><div class="exam-icon" style="background:${bg};color:${cl}"><i class="fas fa-${r.st==='present'?'check':'times'}-circle"></i></div><div style="flex:1"><div class="exam-title">${r.ex.title||'امتحان'}</div><div class="exam-date">${dt}</div></div>${mh}</div>`;
         }).join('');
     }
-    const pays=allData.payments.filter(p=>{
+    const pays=(allData.payments||[]).filter(p=>{
         if(String(p.studentId)!==String(s.id)||p.category!=='اشتراك شهري')return false;
         if(p.cycleId && per.key===`cycle-${p.cycleId}`) return true;
         if(p.year&&p.month)return p.year===per.year&&(p.month-1)===per.month;

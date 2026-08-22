@@ -280,7 +280,7 @@ async function employeeSyncPlatform() {
 }
 
 /**
- * غازي نور الدين v2.0 - Core Intelligence Engine
+ * مستر غازي نور الدين v2.0 - Core Intelligence Engine
  */
 
 // --- Database & Persistence ---
@@ -1835,7 +1835,15 @@ function showSection(sectionId, btnEl) {
     if (sectionId === 'whatsapp') renderWABot();
     if (sectionId === 'daily-treasury') renderDailyTreasury();
     if (sectionId === 'settings') renderProgramSettings();
-    if (sectionId === 'login-systems') renderLoginSystemsSection();
+    if (sectionId === 'login-systems') {
+        if (typeof renderLoginSystemsWithImages === 'function') renderLoginSystemsWithImages();
+        else renderLoginSystemsSection();
+    }
+    if (sectionId === 'dashboard') {
+        setTimeout(() => {
+            if (typeof renderGradeStatsSection === 'function') renderGradeStatsSection();
+        }, 120);
+    }
     if (sectionId === 'teachers') {
         if (typeof TeachersModule !== 'undefined') TeachersModule.initTeachersSection();
     }
@@ -2127,22 +2135,15 @@ async function handleStudentSubmit() {
             ? generateLocalUniqueCode(db.students)
             : ('1' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 900 + 100));
 
-        // ── جمع صور الطالب من Uploader (إن كان نظام الصور محملاً) ──
-        const studentImages = (typeof StudentImages !== 'undefined') ? StudentImages.getImages('std-images-uploader') : [];
-
         const student = {
             id: Date.now(), name, phone, grade: targetGrade, groupId, parentPhone: parent,
             qrCode: uniqueCode,
-            balance: 0, points: 0, joinDate: new Date().toISOString(),
-            images: studentImages
+            balance: 0, points: 0, joinDate: new Date().toISOString()
         };
 
         db.students.push(student);
         await StorageEngine.save('students', student);
-        try { syncStudentToCloud(student); } catch (e) { }
-
-        // تنظيف الـ uploader بعد الحفظ الناجح
-        if (typeof StudentImages !== 'undefined') StudentImages.destroy('std-images-uploader');
+        try { syncStudentToCloud(student); } catch (e) {}
 
         studentListPage = 0;
         renderStudents();
@@ -2236,12 +2237,17 @@ async function renderStudents() {
             </td>
         </tr>`;
 
-        html += groups[groupName].map(s => `
+        html += groups[groupName].map(s => {
+            const sImg = (typeof getEntityImage === 'function') ? getEntityImage('student', String(s.id)) : null;
+            const avatarHTML = sImg
+                ? `<div style="width:34px;height:34px;border-radius:50%;background:url('${sImg}') center/cover;display:inline-block;vertical-align:middle;margin-left:8px;box-shadow:0 2px 6px rgba(0,0,0,0.12);flex-shrink:0;"></div>`
+                : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:0.85rem;vertical-align:middle;margin-left:8px;flex-shrink:0;">${s.name.charAt(0)}</div>`;
+            return `
         <tr class="fade-in">
-            <td style="padding-right: 2rem;">
-                <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span class="avatar" style="width:34px; height:34px; font-size:.9rem; flex-shrink:0;">${(typeof StudentImages !== 'undefined') ? StudentImages.renderAvatarHtml(s, 34) : s.name.charAt(0)}</span>
-                    <strong>${s.name}</strong>
+            <td style="padding-right: 1rem;">
+                <div style="display:flex;align-items:center;gap:0;">
+                    ${avatarHTML}
+                    <strong style="vertical-align:middle;">${s.name}</strong>
                 </div>
             </td>
             <td>${s.phone}</td>
@@ -2262,7 +2268,8 @@ async function renderStudents() {
                     <button class="btn" title="حذف" style="padding:5px 10px; color:var(--danger);" onclick="deleteStudent('${s.id}')"><i class="fas fa-trash"></i></button>
                 </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     });
 
     if (studentListPage === 0) {
@@ -2302,10 +2309,10 @@ async function handleAddGroup() {
     // Create group
     const newGroup = { id: Date.now(), name, time, grade: sysGrade };
     db.groups.push(newGroup);
-
+    
     // حفظ دائم في IndexedDB مع انتظار اكتمال الكتابة (نحفظ المجموعة الجديدة فقط)
     await StorageEngine.save('groups', [newGroup]);
-    try { syncGroupToCloud(newGroup); } catch (e) { }
+    try { syncGroupToCloud(newGroup); } catch (e) {}
 
     // UI Updates
     renderGroups();
@@ -2409,7 +2416,7 @@ function openEditGroupModalById(groupId) {
 }
 
 function _escGroupHTML(str) {
-    return String(str || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // تعديل طالب مباشرة من مودال المجموعة
@@ -2464,7 +2471,7 @@ async function saveGroupEdits() {
 
     // حفظ دائم في IndexedDB
     await StorageEngine.save('groups', db.groups);
-    try { syncGroupToCloud(group); } catch (e) { }
+    try { syncGroupToCloud(group); } catch (e) {}
 
     // تحديث فوري لكل أجزاء الواجهة اللي بتعرض بيانات المجموعة
     const titleEl = document.getElementById('active-group-detail-title');
@@ -2651,9 +2658,6 @@ function openAddStudentForGroup() {
         groupSelect.value = '';
     }
 
-    // تهيئة uploader صور الطالب
-    if (typeof StudentImages !== 'undefined') StudentImages.init('std-images-uploader', []);
-
     toggleModal('student-modal', true);
 }
 
@@ -2670,9 +2674,6 @@ function openAddStudentModal() {
     } else if (groupSelect) {
         groupSelect.value = '';
     }
-
-    // تهيئة uploader صور الطالب
-    if (typeof StudentImages !== 'undefined') StudentImages.init('std-images-uploader', []);
 
     toggleModal('student-modal', true);
 }
@@ -6231,21 +6232,23 @@ function viewDetailedProfile(id) {
     if (!s) return;
 
     const group = db.groups.find(g => g.id == s.groupId);
-
-    // ── عرض صورة/أفاتار الطالب في البروفايل ──
-    const profAvatarEl = document.querySelector('#profile-modal .avatar');
-    if (profAvatarEl && typeof StudentImages !== 'undefined') {
-        profAvatarEl.innerHTML = StudentImages.renderAvatarHtml(s, 80);
+    // ── صورة الطالب في الملف الشخصي ──
+    const profAvatarEl = document.getElementById('prof-avatar-char');
+    const studentImg = typeof getEntityImage === 'function' ? getEntityImage('student', String(s.id)) : null;
+    if (studentImg && profAvatarEl) {
+        const parent = profAvatarEl.parentElement;
+        if (parent) {
+            parent.style.background = `url('${studentImg}') center/cover no-repeat`;
+            profAvatarEl.style.display = 'none';
+        }
+    } else if (profAvatarEl) {
+        const parent = profAvatarEl.parentElement;
+        if (parent) parent.style.background = '';
+        profAvatarEl.style.display = '';
+        profAvatarEl.innerText = s.name.charAt(0);
     } else {
-        document.getElementById('prof-avatar-char').innerText = s.name.charAt(0);
+        if (profAvatarEl) profAvatarEl.innerText = s.name.charAt(0);
     }
-
-    // ── عرض معرض الصور في قسم prof-images-section ──
-    const profImagesSection = document.getElementById('prof-images-section');
-    if (profImagesSection && typeof StudentImages !== 'undefined') {
-        profImagesSection.innerHTML = `<h3 style="margin-bottom:.6rem;"><i class="fas fa-images"></i> صور الطالب</h3>${StudentImages.renderGalleryHtml(s)}`;
-    }
-
     document.getElementById('prof-name').innerText = s.name;
     const jDateRaw = s.joinDate || s.id; // Use id as fallback for old records
     const jDateObj = new Date(jDateRaw);
@@ -6418,7 +6421,7 @@ function generatePrintCard(id) {
                             displayValue: true, fontSize: 22, flat: true,
                             margin: 10, background: "#ffffff", lineColor: "#000000"
                         });
-                    } catch (e2) { console.warn('JsBarcode error:', e2); }
+                    } catch(e2) { console.warn('JsBarcode error:', e2); }
                 };
                 document.head.appendChild(script);
             }
@@ -6436,10 +6439,10 @@ function generatePrintCard(id) {
             qrImg.alt = 'QR Code';
             qrImg.style.cssText = 'border-radius:10px; border:2px solid #e2e8f0; display:block;';
             qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(studentUrl)}&color=1e293b&bgcolor=ffffff&qzone=1&format=png`;
-            qrImg.onerror = function () {
+            qrImg.onerror = function() {
                 if (typeof QRCode !== 'undefined') {
-                    try { new QRCode(qrContainer, { text: studentUrl, width: 130, height: 130, colorDark: '#1e293b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H }); }
-                    catch (e) { qrContainer.innerHTML = ''; }
+                    try { new QRCode(qrContainer, { text: studentUrl, width:130, height:130, colorDark:'#1e293b', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H }); }
+                    catch(e) { qrContainer.innerHTML = ''; }
                 }
             };
             qrContainer.appendChild(qrImg);
@@ -6464,7 +6467,7 @@ function printCurrentCardThermal() {
 let _currentQRStudentId = null;
 
 function showStudentQR(id) {
-    console.log('[QR] called, id=', id, 'students=', (db && db.students || []).length);
+    console.log('[QR] called, id=', id, 'students=', (db&&db.students||[]).length);
     const s = (db.students || []).find(x => String(x.id) === String(id));
     if (!s) {
         if (typeof showNotification === 'function') showNotification('لم يتم العثور على بيانات الطالب', 'warning');
@@ -6596,7 +6599,7 @@ function sendStudentQRWhatsApp(type) {
     if (!s) return showNotification('لم يتم العثور على بيانات الطالب', 'error');
 
     // ── مزامنة فورية للسحابة لضمان فتح الرابط لولي الأمر ──
-    try { syncStudentToCloud(s); } catch (e) { }
+    try { syncStudentToCloud(s); } catch (e) {}
 
     const phone = type === 'parent' ? (s.parentPhone || s.phone) : s.phone;
     const recipientLabel = type === 'parent' ? 'ولي الأمر' : 'الطالب';
@@ -6637,7 +6640,7 @@ function sendStudentQRDirect(id) {
     }
 
     // ── مزامنة فورية للسحابة لضمان فتح الرابط لولي الأمر ──
-    try { syncStudentToCloud(s); } catch (e) { }
+    try { syncStudentToCloud(s); } catch (e) {}
 
     const phone = s.parentPhone || s.phone;
     if (!phone) {
@@ -7709,14 +7712,21 @@ function updateDashboardStats() {
     if (groupGrid) {
         const groupObj = db.groups.find(g => g.id == currentGroupId);
         if (groupObj) {
+            const grpImg = (typeof getEntityImage === 'function') ? getEntityImage('group', String(groupObj.id)) : null;
+            const grpAvatarHTML = grpImg
+                ? `<div style="width:56px;height:56px;border-radius:14px;background:url('${grpImg}') center/cover;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>`
+                : `<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--primary),#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-users" style="color:white;font-size:1.4rem;"></i></div>`;
             groupGrid.innerHTML = `
-                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
-                        <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
-                        <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
+                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center; gap:1rem;">
+                    <div style="display:flex;align-items:center;gap:1rem;">
+                        ${grpAvatarHTML}
+                        <div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
+                            <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
+                            <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
+                        </div>
                     </div>
-                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px;">
+                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px; flex-shrink:0;">
                         <i class="fas fa-exchange-alt"></i> تغيير المجموعة
                     </button>
                 </div>
@@ -8753,11 +8763,6 @@ async function deleteStudent(id) {
     const target = db.students.find(s => String(s.id) === String(id));
     if (!target) return showNotification('تعذر العثور على الطالب في قاعدة البيانات', 'error');
     if (!confirm('هل أنت متأكد من حذف هذا الطالب نهائياً؟')) return;
-
-    // ── حذف صور الطالب من Cloudinary (best-effort) ──
-    if (typeof StudentImages !== 'undefined' && target) {
-        StudentImages.deleteStudentImages(target).catch(err => console.warn('[StudentImages] cleanup warning:', err));
-    }
 
     // 1. الحذف المحلي (IndexedDB)
     db.students = db.students.filter(s => String(s.id) !== String(target.id));
@@ -10220,22 +10225,22 @@ function initExperienceEnhancements() {
 function getProgramProfile() {
     if (!db._settings.appProfile) {
         db._settings.appProfile = {
-            centerName: 'غازي نور الدين',
+            centerName: 'مستر غازي نور الدين',
             teacherName: '',
-            stickerTitle: 'غازي نور الدين',
+            stickerTitle: 'مستر غازي نور الدين',
             phone: ''
         };
     }
     // ضمان وجود centerName الافتراضي لو كان فارغًا
     if (!db._settings.appProfile.centerName) {
-        db._settings.appProfile.centerName = 'غازي نور الدين';
+        db._settings.appProfile.centerName = 'مستر غازي نور الدين';
     }
     return db._settings.appProfile;
 }
 
 function applyProgramProfile() {
     const profile = getProgramProfile();
-    const centerDisplay = profile.centerName || 'غازي نور الدين';
+    const centerDisplay = profile.centerName || 'مستر غازي نور الدين';
     document.title = `${centerDisplay} | نظام الإدارة`;
 
     // شعار الشريط الجانبي
@@ -10506,9 +10511,9 @@ function saveMessageSettings() {
     const welcomeVal = document.getElementById('settings-msg-welcome')?.value.trim() || '';
 
     const msgs = JSON.parse(localStorage.getItem('edu_custom_messages') || '{}');
-    msgs.absence = absenceVal;
+    msgs.absence      = absenceVal;
     msgs.monthlyIntro = monthlyVal;
-    msgs.welcome = welcomeVal;
+    msgs.welcome      = welcomeVal;
     localStorage.setItem('edu_custom_messages', JSON.stringify(msgs));
 
     // تحديث waTemplates في الذاكرة فوراً
@@ -10773,7 +10778,7 @@ async function ensureFirebaseInitialized() {
                 storageBucket: "gazey-noreldan.firebasestorage.app",
                 messagingSenderId: "438217111789",
                 appId: "1:438217111789:web:1ec599209190566920b4e4",
-                measurementId: "G-VJVS5MPCD9"
+                measurementId: "G-0K9RZBCG33"
             };
             // ✅ إصلاح: نتحقق من [DEFAULT] app تحديداً وليس كل الـ apps
             // ensureDeviceSyncFirebaseInitialized قد تكون هيَّأت secondary app أولاً
@@ -10816,7 +10821,7 @@ async function ensureDeviceSyncFirebaseInitialized() {
                 storageBucket: "gazey-noreldan.firebasestorage.app",
                 messagingSenderId: "438217111789",
                 appId: "1:438217111789:web:1ec599209190566920b4e4",
-                measurementId: "G-VJVS5MPCD9"
+                measurementId: "G-0K9RZBCG33"
             };
 
             // اسم مميّز "deviceSyncApp" يضمن عدم التعارض مع تطبيق Firebase
@@ -11664,7 +11669,7 @@ async function uploadPaymentsToCloud() {
                 console.warn('[DeviceSync] Firebase الرئيسي غير جاهز — بيانات رابط الطالب لم تُرفع');
                 showNotification('⚠️ تم رفع البيانات الرئيسية، لكن روابط الطلاب قد لا تعمل (Firebase غير متاح). حاول مجدداً.', 'warning');
             } else {
-                const studentReportTables = ['students', 'groups', 'attendance', 'absenceSessions', 'exams', 'scores', 'payments', 'cycles'];
+                const studentReportTables = ['students','groups','attendance','absenceSessions','exams','scores','payments','cycles'];
                 let srTotal = 0;
                 for (const tName of studentReportTables) {
                     const records = await StorageEngine.getAll(tName);
@@ -12442,7 +12447,7 @@ const exposures = {
         snapshot.gradesList = gradesList;
 
         const dataJsContent = `/**
- * غازي نور الدين Data Storage File - للبيع والنقل
+ * مستر غازي نور الدين Data Storage File - للبيع والنقل
  * Created: ${new Date().toLocaleString()}
  */
 window.edu_initial_data = ${JSON.stringify(snapshot, null, 4)};`;
@@ -13343,9 +13348,6 @@ async function editStudent(id) {
     const filteredGroups = db.groups.filter(g => g.grade == currentGrade);
     groupSelect.innerHTML = filteredGroups.map(g => `<option value="${g.id}" ${g.id == student.groupId ? 'selected' : ''}>${g.name} (${g.time})</option>`).join('');
 
-    // تهيئة uploader صور الطالب بالصور الحالية
-    if (typeof StudentImages !== 'undefined') StudentImages.init('edit-std-images-uploader', student.images || []);
-
     toggleModal('edit-student-modal', true);
 }
 
@@ -13366,18 +13368,7 @@ async function handleStudentUpdate() {
     student.groupId = groupId;
     student.parentPhone = parent;
 
-    // ── حفظ صور الطالب المحدّثة ──
-    if (typeof StudentImages !== 'undefined') {
-        student.images = StudentImages.getImages('edit-std-images-uploader');
-    }
-
     await StorageEngine.save('students', student);
-
-    // ── تنظيف الصور المحذوفة من Cloudinary ومسح الـ uploader ──
-    if (typeof StudentImages !== 'undefined') {
-        await StudentImages.flushDeletions('edit-std-images-uploader');
-        StudentImages.destroy('edit-std-images-uploader');
-    }
 
     const idx = db.students.findIndex(s => s.id == id);
     if (idx !== -1) db.students[idx] = student;
@@ -14273,7 +14264,7 @@ window.diagnoseStaffAuth = diagnoseStaffAuth;
 //  هذه المجاميع يجب أن تكون موجودة دائماً في السيستم بنفس الـ IDs
 // ══════════════════════════════════════════════════════════════
 // seedBookingGroups: disabled — no default groups
-window.seedBookingGroups = async function () { };
+window.seedBookingGroups = async function() {};
 
 window.startBookingAutoSync = startBookingAutoSync;
 

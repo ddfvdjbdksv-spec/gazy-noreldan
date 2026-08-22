@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#4f46e5">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="غازي نور الدين">
-    <title>غازي نور الدين | نظام الإدارة</title>
+    <meta name="apple-mobile-web-app-title" content="مستر غازي نور الدين">
+    <title>مستر غازي نور الدين | نظام الإدارة</title>
     <style>
         .search-results-dropdown {
             position: absolute;
@@ -103,7 +103,7 @@
                 <div class="splash-logo" style="margin-bottom: 1.5rem;">
                     <i class="fas fa-university"></i>
                 </div>
-                <h1 class="splash-title" id="splash-center-name">غازي نور الدين</h1>
+                <h1 class="splash-title" id="splash-center-name">مستر غازي نور الدين</h1>
                 <p class="splash-subtitle">نظام الإدارة المتكامل</p>
 
                 <div id="password-screen">
@@ -142,7 +142,7 @@
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="logo">
-            <i class="fas fa-book-open"></i> <span id="nav-logo-name">غازي نور الدين</span>
+            <i class="fas fa-book-open"></i> <span id="nav-logo-name">مستر غازي نور الدين</span>
         </div>
         <div id="current-grade-badge"
             style="text-align: center; margin-bottom: 1.5rem; padding: 0.5rem; background: var(--bg-light); border-radius: 10px; font-weight: 700; color: var(--primary);">
@@ -208,8 +208,7 @@
                     </a>
                 </li>
                 <li class="nav-item" data-rbac="all">
-                    <a href="#" class="nav-link" id="nav-ai-exam-builder"
-                        onclick="showSection('ai-exam-builder', this)">
+                    <a href="#" class="nav-link" id="nav-ai-exam-builder" onclick="showSection('ai-exam-builder', this)">
                         <i class="fas fa-robot" style="color:#7c3aed;"></i>
                         <span>اختبارات الذكاء الاصطناعي</span>
                     </a>
@@ -258,8 +257,7 @@
                     </a>
                 </li>
                 <li class="nav-item" data-rbac="admin">
-                    <a href="#" class="nav-link" id="nav-teachers-attendance"
-                        onclick="showSection('teachers-attendance', this)">
+                    <a href="#" class="nav-link" id="nav-teachers-attendance" onclick="showSection('teachers-attendance', this)">
                         <i class="fas fa-clipboard-check" style="color:#0ea5e9;"></i>
                         <span>تحضير المدرسين</span>
                     </a>
@@ -372,6 +370,12 @@
 
         <!-- Dashboard Section -->
         <section id="dashboard-section" class="fade-in">
+
+            <!-- ═══ قسم الإحصائيات حسب المرحلة ═══ -->
+            <div id="grade-stats-section" style="margin-bottom: 2rem;">
+                <!-- يُملأ بـ renderGradeStatsSection() -->
+            </div>
+
             <div style="display: flex; gap: 1rem; margin-bottom: 2rem; justify-content: flex-end;">
                 <button class="btn"
                     style="background: rgba(16, 185, 129, 0.1); color: var(--accent); border: 1px solid var(--accent); border-radius: 12px; font-weight: 700; padding: 0.8rem 1.5rem;"
@@ -916,7 +920,24 @@
                 <div style="background: var(--bg-light); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
                     <h4 style="margin-bottom: 1rem; font-size: 1rem;"><i class="fas fa-user-plus"></i> إضافة حساب سكرتير
                         جديد</h4>
-                    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-start;">
+
+                        <!-- لوجو / صورة السكرتير -->
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
+                            <div onclick="document.getElementById('img-input-secretary-new').click()"
+                                id="img-preview-secretary-new"
+                                style="width:60px;height:60px;border-radius:14px;
+                                       background:linear-gradient(135deg,#06b6d4,#3b82f6);
+                                       cursor:pointer;display:flex;align-items:center;justify-content:center;
+                                       border:2px dashed rgba(255,255,255,0.4);overflow:hidden;"
+                                title="لوجو / صورة السكرتير">
+                                <i class="fas fa-user-tie" style="font-size:22px;color:white;opacity:0.9;"></i>
+                            </div>
+                            <span style="font-size:0.65rem;color:var(--text-muted);">صورة (اختياري)</span>
+                            <input type="file" id="img-input-secretary-new" accept="image/*" style="display:none;"
+                                onchange="handleImageUpload(this,'secretary','','img-preview-secretary-new')">
+                        </div>
+
                         <div style="flex:1; min-width:200px;">
                             <label
                                 style="display:block; font-size:0.85rem; color:var(--text-muted); margin-bottom:4px;">اسم
@@ -931,8 +952,8 @@
                             <input type="text" id="new-secretary-password" class="form-input"
                                 placeholder="كلمة مرور خاصة به" style="margin-bottom:0;">
                         </div>
-                        <button class="btn btn-primary" style="height:48px; border-radius:12px; padding:0 2rem;"
-                            onclick="addNewSecretary()">
+                        <button class="btn btn-primary" style="height:48px; border-radius:12px; padding:0 2rem; margin-top:22px;"
+                            onclick="addNewSecretaryWithImage()">
                             <i class="fas fa-plus"></i> إضافة الحساب
                         </button>
                     </div>
@@ -954,6 +975,7 @@
                     <table style="width:100%;">
                         <thead>
                             <tr>
+                                <th style="text-align:right; padding:8px;">الصورة</th>
                                 <th style="text-align:right; padding:8px;">اسم السكرتير</th>
                                 <th style="text-align:right; padding:8px;">كلمة المرور</th>
                                 <th style="text-align:right; padding:8px;">إجراءات</th>
@@ -2812,8 +2834,7 @@
                     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.2rem;">
                         <div
                             style="width:52px; height:52px; border-radius:14px; background:rgba(79,70,229,0.12); display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:var(--primary);">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                        </div>
+                            <i class="fas fa-cloud-upload-alt"></i></div>
                         <div>
                             <div style="font-weight:700; font-size:1.1rem;">تصدير الطلاب للمنصة</div>
                             <div style="color:var(--text-muted); font-size:0.85rem;">رفع بيانات الطلاب المسجلين</div>
@@ -2828,8 +2849,7 @@
                     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.2rem;">
                         <div
                             style="width:52px; height:52px; border-radius:14px; background:rgba(139,92,246,0.12); display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#8b5cf6;">
-                            <i class="fas fa-link"></i>
-                        </div>
+                            <i class="fas fa-link"></i></div>
                         <div>
                             <div style="font-weight:700; font-size:1.1rem;">مزامنة الاشتراكات المعلقة</div>
                             <div style="color:var(--text-muted); font-size:0.85rem;">تفعيل الاشتراكات المنتظرة</div>
@@ -2844,8 +2864,7 @@
                     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.2rem;">
                         <div
                             style="width:52px; height:52px; border-radius:14px; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:var(--accent);">
-                            <i class="fas fa-sync-alt"></i>
-                        </div>
+                            <i class="fas fa-sync-alt"></i></div>
                         <div>
                             <div style="font-weight:700; font-size:1.1rem;">مزامنة مع المنصة</div>
                             <div style="color:var(--text-muted); font-size:0.85rem;">مزامنة شاملة لجميع البيانات</div>
@@ -2864,46 +2883,45 @@
 
         <!-- ══ قسم تحضير المدرسين السريع ══ -->
         <section id="teachers-attendance-section" style="display:none;" class="fade-in">
-            <div style="padding:0 0 2rem;">
-                <div id="teachers-attendance-content">
-                    <div style="text-align:center;padding:3rem;color:var(--text-muted);">
-                        <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
-                        <p style="margin-top:1rem;">جاري تحميل جدول حصص اليوم...</p>
-                    </div>
-                </div>
+          <div style="padding:0 0 2rem;">
+            <div id="teachers-attendance-content">
+              <div style="text-align:center;padding:3rem;color:var(--text-muted);">
+                <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+                <p style="margin-top:1rem;">جاري تحميل جدول حصص اليوم...</p>
+              </div>
             </div>
+          </div>
         </section>
 
         <!-- ══ قسم حسابات المدرسين ══ -->
         <section id="teachers-section" style="display:none;" class="fade-in">
-            <div style="padding:0 0 2rem;">
-                <div id="teachers-grid-view">
-                    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-                        <div style="position:relative;flex:1;min-width:200px;">
-                            <i class="fas fa-search"
-                                style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
-                            <input type="text" id="teachers-search" class="form-input"
-                                placeholder="ابحث عن مدرس بالاسم..." oninput="TeachersModule.renderTeachersGrid()"
-                                style="padding-right:42px;">
-                        </div>
-                        <button class="btn btn-primary" onclick="TeachersModule.showAddTeacherModal()"
-                            style="border-radius:12px;padding:0.65rem 1.5rem;white-space:nowrap;">
-                            <i class="fas fa-plus"></i> إضافة مدرس
-                        </button>
-                    </div>
-                    <div id="teachers-grid"
-                        style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.2rem;">
-                        <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
-                            <i class="fas fa-chalkboard-teacher"
-                                style="font-size:3rem;opacity:0.25;display:block;margin-bottom:1rem;"></i>
-                            <p>جاري تحميل بيانات المدرسين...</p>
-                        </div>
-                    </div>
+          <div style="padding:0 0 2rem;">
+            <div id="teachers-grid-view">
+              <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+                <div style="position:relative;flex:1;min-width:200px;">
+                  <i class="fas fa-search" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"></i>
+                  <input type="text" id="teachers-search" class="form-input"
+                    placeholder="ابحث عن مدرس بالاسم..."
+                    oninput="TeachersModule.renderTeachersGrid()"
+                    style="padding-right:42px;">
                 </div>
-                <div id="teacher-account-view" style="display:none;">
-                    <div id="teacher-account-content"></div>
+                <button class="btn btn-primary" onclick="TeachersModule.showAddTeacherModal()"
+                  style="border-radius:12px;padding:0.65rem 1.5rem;white-space:nowrap;">
+                  <i class="fas fa-plus"></i> إضافة مدرس
+                </button>
+              </div>
+              <div id="teachers-grid"
+                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.2rem;">
+                <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+                  <i class="fas fa-chalkboard-teacher" style="font-size:3rem;opacity:0.25;display:block;margin-bottom:1rem;"></i>
+                  <p>جاري تحميل بيانات المدرسين...</p>
                 </div>
+              </div>
             </div>
+            <div id="teacher-account-view" style="display:none;">
+              <div id="teacher-account-content"></div>
+            </div>
+          </div>
         </section>
 
     </main>
@@ -2911,7 +2929,25 @@
     <!-- Student Entry Modal -->
     <div id="student-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3 style="margin-bottom: 2rem; text-align: center;">بيانات الطالب الجديد</h3>
+            <h3 style="margin-bottom: 1.5rem; text-align: center;">بيانات الطالب الجديد</h3>
+
+            <!-- صورة الطالب -->
+            <div id="student-img-upload-area" style="text-align:center;margin-bottom:1rem;">
+                <div onclick="document.getElementById('img-input-student-new').click()"
+                    id="img-preview-student-new"
+                    style="width:80px;height:80px;border-radius:50%;
+                           background:linear-gradient(135deg,var(--primary),var(--accent));
+                           cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+                           border:3px dashed rgba(255,255,255,0.4);box-shadow:0 4px 15px rgba(0,0,0,0.15);
+                           position:relative;overflow:hidden;transition:all 0.2s;"
+                    title="اضغط لاختيار صورة الطالب">
+                    <i class="fas fa-camera" style="font-size:28px;color:white;opacity:0.9;"></i>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">صورة الطالب (اختياري)</div>
+                <input type="file" id="img-input-student-new" accept="image/*" style="display:none;"
+                    onchange="handleImageUpload(this,'student','','img-preview-student-new')">
+            </div>
+
             <div class="form-group">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">الاسم الثلاثي</label>
                 <input type="text" id="std-name" placeholder="أدخل اسم الطالب..." class="form-input">
@@ -2941,10 +2977,6 @@
                 <div id="std-parent-results"
                     style="margin-top: 5px; font-size: 0.85rem; max-height: 100px; overflow-y: auto;"></div>
             </div>
-            <div class="form-group">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📷 صور الطالب</label>
-                <div id="std-images-uploader"></div>
-            </div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button class="btn btn-primary" style="flex: 2;" onclick="handleStudentSubmit()">حفظ
                     البيانات</button>
@@ -2957,8 +2989,26 @@
     <!-- Edit Student Modal -->
     <div id="edit-student-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3 style="margin-bottom: 2rem; text-align: center;">تعديل بيانات الطالب</h3>
+            <h3 style="margin-bottom: 1.5rem; text-align: center;">تعديل بيانات الطالب</h3>
             <input type="hidden" id="edit-std-id">
+
+            <!-- صورة الطالب في التعديل -->
+            <div style="text-align:center;margin-bottom:1rem;">
+                <div onclick="document.getElementById('img-input-student-edit').click()"
+                    id="img-preview-student-edit"
+                    style="width:80px;height:80px;border-radius:50%;
+                           background:linear-gradient(135deg,var(--primary),var(--accent));
+                           cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+                           border:3px dashed rgba(255,255,255,0.4);box-shadow:0 4px 15px rgba(0,0,0,0.15);
+                           position:relative;overflow:hidden;transition:all 0.2s;"
+                    title="اضغط لتغيير صورة الطالب">
+                    <i class="fas fa-camera" style="font-size:28px;color:white;opacity:0.9;"></i>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">صورة الطالب</div>
+                <input type="file" id="img-input-student-edit" accept="image/*" style="display:none;"
+                    onchange="handleImageUpload(this,'student',document.getElementById('edit-std-id').value,'img-preview-student-edit')">
+            </div>
+
             <div class="form-group">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">الاسم الثلاثي</label>
                 <input type="text" id="edit-std-name" placeholder="أدخل اسم الطالب..." class="form-input">
@@ -2974,10 +3024,6 @@
             <div class="form-group">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">هاتف ولي الأمر</label>
                 <input type="text" id="edit-std-parent" placeholder="01xxxxxxxxx" class="form-input">
-            </div>
-            <div class="form-group">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">📷 صور الطالب</label>
-                <div id="edit-std-images-uploader"></div>
             </div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button class="btn btn-primary" style="flex: 2; background: var(--accent);"
@@ -3066,7 +3112,6 @@
             <!-- Profile Tabs Content -->
             <div style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                    <div class="data-table-container" id="prof-images-section" style="grid-column: 1 / -1;"></div>
                     <div class="data-table-container">
                         <h3><i class="fas fa-file-invoice"></i> سجل الامتحانات</h3>
                         <ul id="prof-scores-list" style="list-style: none; margin-top: 1rem;"></ul>
@@ -3120,7 +3165,24 @@
     <!-- Group Entry Modal -->
     <div id="group-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3 style="margin-bottom: 2rem; text-align: center;">بيانات المجموعة الجديدة</h3>
+            <h3 style="margin-bottom: 1.5rem; text-align: center;">بيانات المجموعة الجديدة</h3>
+
+            <!-- لوجو المجموعة -->
+            <div style="text-align:center;margin-bottom:1rem;">
+                <div onclick="document.getElementById('img-input-group-new').click()"
+                    id="img-preview-group-new"
+                    style="width:80px;height:80px;border-radius:16px;
+                           background:linear-gradient(135deg,var(--primary),#7c3aed);
+                           cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+                           border:3px dashed rgba(255,255,255,0.4);box-shadow:0 4px 15px rgba(0,0,0,0.15);
+                           position:relative;overflow:hidden;" title="لوجو المجموعة">
+                    <i class="fas fa-image" style="font-size:28px;color:white;opacity:0.9;"></i>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">لوجو / صورة المجموعة (اختياري)</div>
+                <input type="file" id="img-input-group-new" accept="image/*" style="display:none;"
+                    onchange="handleImageUpload(this,'group','','img-preview-group-new')">
+            </div>
+
             <div class="form-group">
                 <label>اسم المجموعة (مثلاً: مجموعة السبت والأربعاء)</label>
                 <input type="text" id="group-name" placeholder="أدخل اسم المجموعة..." class="form-input">
@@ -3130,7 +3192,7 @@
                 <input type="text" id="group-time" placeholder="مثلاً: 4:00 عصراً" class="form-input">
             </div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" style="flex: 2;" onclick="handleAddGroup()">حفظ المجموعة</button>
+                <button class="btn btn-primary" style="flex: 2;" onclick="handleAddGroupWithImage()">حفظ المجموعة</button>
                 <button class="btn" style="flex: 1; background: var(--bg-light);"
                     onclick="toggleModal('group-modal', false)">إلغاء</button>
             </div>
@@ -3142,24 +3204,42 @@
         <div class="modal-content" style="max-width: 680px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
                 <h3 style="margin:0; color:var(--primary);"><i class="fas fa-edit"></i> تعديل المجموعة</h3>
-                <button onclick="toggleModal('edit-group-modal', false)"
-                    style="background:var(--bg-light);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:var(--text-muted);">✕</button>
+                <button onclick="toggleModal('edit-group-modal', false)" style="background:var(--bg-light);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:var(--text-muted);">✕</button>
+            </div>
+
+            <!-- لوجو المجموعة في التعديل -->
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;
+                         background:var(--bg-light);border-radius:14px;padding:0.9rem;">
+                <div onclick="document.getElementById('img-input-group-edit').click()"
+                    id="img-preview-group-edit"
+                    style="width:64px;height:64px;border-radius:14px;
+                           background:linear-gradient(135deg,var(--primary),#7c3aed);
+                           cursor:pointer;display:flex;align-items:center;justify-content:center;
+                           border:2px dashed rgba(255,255,255,0.4);flex-shrink:0;overflow:hidden;"
+                    title="لوجو المجموعة">
+                    <i class="fas fa-image" style="font-size:22px;color:white;opacity:0.9;"></i>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;font-size:0.88rem;margin-bottom:4px;">لوجو / صورة المجموعة</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">اضغط على الصورة لتغييرها</div>
+                    <input type="file" id="img-input-group-edit" accept="image/*" style="display:none;"
+                        onchange="handleImageUpload(this,'group',_getActiveGroupEditId(),'img-preview-group-edit')">
+                    <button type="button" onclick="removeEntityImageUI('group',_getActiveGroupEditId(),'img-preview-group-edit','img-input-group-edit')"
+                        style="font-size:0.72rem;color:var(--danger);background:none;border:none;cursor:pointer;padding:0;">
+                        <i class="fas fa-trash-alt"></i> حذف الصورة
+                    </button>
+                </div>
             </div>
 
             <!-- بيانات المجموعة -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.2rem;">
                 <div class="form-group" style="margin:0;">
-                    <label
-                        style="font-size:0.85rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">اسم
-                        المجموعة</label>
-                    <input type="text" id="edit-group-name" placeholder="أدخل اسم المجموعة..." class="form-input"
-                        style="margin:0;">
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">اسم المجموعة</label>
+                    <input type="text" id="edit-group-name" placeholder="أدخل اسم المجموعة..." class="form-input" style="margin:0;">
                 </div>
                 <div class="form-group" style="margin:0;">
-                    <label
-                        style="font-size:0.85rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">الموعد</label>
-                    <input type="text" id="edit-group-time" placeholder="مثلاً: 4:00 عصراً" class="form-input"
-                        style="margin:0;">
+                    <label style="font-size:0.85rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:6px;">الموعد</label>
+                    <input type="text" id="edit-group-time" placeholder="مثلاً: 4:00 عصراً" class="form-input" style="margin:0;">
                 </div>
             </div>
 
@@ -3167,15 +3247,13 @@
                 <button class="btn btn-primary" style="flex:2; height:44px;" onclick="saveGroupEdits()">
                     <i class="fas fa-save"></i> حفظ بيانات المجموعة
                 </button>
-                <button class="btn" style="flex:1; height:44px; background:var(--bg-light);"
-                    onclick="toggleModal('edit-group-modal', false)">إلغاء</button>
+                <button class="btn" style="flex:1; height:44px; background:var(--bg-light);" onclick="toggleModal('edit-group-modal', false)">إلغاء</button>
             </div>
 
             <!-- قسم الطلاب -->
             <div style="border-top:2px dashed var(--border); padding-top:1.2rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
-                    <h4 style="margin:0; font-size:0.95rem; color:var(--primary);"><i class="fas fa-users"></i> طلاب
-                        المجموعة</h4>
+                    <h4 style="margin:0; font-size:0.95rem; color:var(--primary);"><i class="fas fa-users"></i> طلاب المجموعة</h4>
                     <button onclick="openAddStudentForGroupModal()" class="btn btn-primary"
                         style="padding:5px 12px; font-size:0.82rem; background:var(--primary);">
                         <i class="fas fa-user-plus"></i> إضافة طالب
@@ -3484,12 +3562,9 @@
                     </p>
 
                     <!-- QR Code Section -->
-                    <div
-                        style="margin-top: 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
-                        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;"><i
-                                class="fas fa-qrcode"></i> رابط التقرير الشخصي</p>
-                        <div id="print-modal-qr-container"
-                            style="display:flex; justify-content:center; align-items:center; min-height:130px;">
+                    <div style="margin-top: 1.2rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;"><i class="fas fa-qrcode"></i> رابط التقرير الشخصي</p>
+                        <div id="print-modal-qr-container" style="display:flex; justify-content:center; align-items:center; min-height:130px;">
                             <i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i>
                         </div>
                     </div>
@@ -3519,8 +3594,9 @@
                 تصدير الأكواد PDF</h3>
 
             <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
-                <input type="text" id="export-pdf-search" class="form-input" placeholder="بحث بالاسم أو كود الطالب..."
-                    style="flex: 2; margin-bottom: 0;" oninput="renderExportPdfStudentsTable()">
+                <input type="text" id="export-pdf-search" class="form-input"
+                    placeholder="بحث بالاسم أو كود الطالب..." style="flex: 2; margin-bottom: 0;"
+                    oninput="renderExportPdfStudentsTable()">
                 <select id="export-pdf-group-filter" class="form-input" style="flex: 1; margin-bottom: 0;"
                     onchange="renderExportPdfStudentsTable()">
                     <option value="">-- كل المجموعات --</option>
@@ -3748,11 +3824,28 @@
     <!-- Reward Modal -->
     <div id="reward-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3 style="margin-bottom: 2rem; text-align: center;">إضافة عرض لمتجر التميز</h3>
+            <h3 style="margin-bottom: 1.5rem; text-align: center;">إضافة عرض لمتجر التميز</h3>
+
+            <!-- صورة المكافأة / الشخصية -->
+            <div style="text-align:center;margin-bottom:1rem;">
+                <div onclick="document.getElementById('img-input-character-new').click()"
+                    id="img-preview-character-new"
+                    style="width:80px;height:80px;border-radius:18px;
+                           background:linear-gradient(135deg,#f59e0b,#f97316);
+                           cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+                           border:3px dashed rgba(255,255,255,0.4);box-shadow:0 4px 15px rgba(0,0,0,0.15);
+                           position:relative;overflow:hidden;" title="صورة المكافأة">
+                    <i class="fas fa-star" style="font-size:28px;color:white;opacity:0.9;"></i>
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">صورة الشخصية / المكافأة (اختياري)</div>
+                <input type="file" id="img-input-character-new" accept="image/*" style="display:none;"
+                    onchange="handleImageUpload(this,'character','','img-preview-character-new')">
+            </div>
+
             <input type="text" id="rew-title" placeholder="اسم المكافأة" class="form-input">
             <input type="number" id="rew-cost" placeholder="التكلفة بالنقاط" class="form-input">
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" style="flex: 2;" onclick="handleAddReward()">إضافة للمتجر</button>
+                <button class="btn btn-primary" style="flex: 2;" onclick="handleAddRewardWithImage()">إضافة للمتجر</button>
                 <button class="btn" style="flex: 1; background: var(--bg-light);"
                     onclick="toggleModal('reward-modal', false)">إلغاء</button>
             </div>
@@ -3929,7 +4022,7 @@
                 </div>
                 <h1
                     style="font-size: 4rem; margin-bottom: 1rem; font-family: 'Outfit', sans-serif; letter-spacing: -1px; font-weight: 800;">
-                    غازي نور الدين</h1>
+                    مستر غازي نور الدين</h1>
                 <p
                     style="font-size: 1.4rem; opacity: 0.8; font-weight: 300; max-width: 600px; margin: 0 auto; line-height: 1.6;">
                     بوابتك الذكية لإدارة العملية التعليمية بأحدث تقنيات العصر الحديث</p>
@@ -4030,14 +4123,31 @@
 
         <!-- Add Grade Modal -->
         <div id="add-grade-modal" class="modal-overlay" style="display: none;">
-            <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-content" style="max-width: 420px;">
                 <h3 style="margin-bottom: 1.5rem; text-align: center;">إضافة سنة دراسية جديدة</h3>
+
+                <!-- صورة السنة الدراسية -->
+                <div style="text-align:center;margin-bottom:1rem;">
+                    <div onclick="document.getElementById('img-input-grade-new').click()"
+                        id="img-preview-grade-new"
+                        style="width:80px;height:80px;border-radius:18px;
+                               background:linear-gradient(135deg,#f59e0b,#ef4444);
+                               cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+                               border:3px dashed rgba(255,255,255,0.4);box-shadow:0 4px 15px rgba(0,0,0,0.15);
+                               position:relative;overflow:hidden;" title="صورة السنة">
+                        <i class="fas fa-graduation-cap" style="font-size:28px;color:white;opacity:0.9;"></i>
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">صورة / أيقونة السنة (اختياري)</div>
+                    <input type="file" id="img-input-grade-new" accept="image/*" style="display:none;"
+                        onchange="handleImageUpload(this,'grade','','img-preview-grade-new')">
+                </div>
+
                 <div class="form-group">
                     <label>اسم السنة (مثلاً: الأول الابتدائي)</label>
                     <input type="text" id="new-grade-name" placeholder="أدخل المسمى..." class="form-input">
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button class="btn btn-primary" style="flex: 2;" onclick="addNewGrade()">حفظ السنة</button>
+                    <button class="btn btn-primary" style="flex: 2;" onclick="addNewGradeWithImage()">حفظ السنة</button>
                     <button class="btn" style="flex: 1; background: var(--bg-light);"
                         onclick="toggleModal('add-grade-modal', false)">إلغاء</button>
                 </div>
@@ -4083,7 +4193,7 @@
                         </div>
 
                         <p style="font-size: 1.8rem; margin-bottom: 2.5rem; font-weight: 400;">يَسُر إدارة <strong
-                                id="cert-center-name" style="color:var(--primary); font-size: 2rem;">غازي نور الدين</strong> أن
+                                id="cert-center-name" style="color:var(--primary); font-size: 2rem;">مستر غازي نور الدين</strong> أن
                             تمنح
                             هذه
                             الشهادة لـ:</p>
@@ -4135,7 +4245,7 @@
                                 <p style="margin: 0; font-weight: 700; color: #1e293b;">توقيع المحاضر</p>
                                 <div id="cert-teacher-name"
                                     style="font-family: 'Dancing Script', cursive; font-size: 1.8rem; color: var(--primary); margin-top: 5px;">
-                                    غازي نور الدين</div>
+                                    أمين الغازي</div>
                             </div>
 
                             <div style="background: white; padding: 10px; border: 1px solid #eee; border-radius: 10px;">
@@ -4256,7 +4366,6 @@
         <script src="booking-groups.js?v=1"></script>
         <script src="archive_functions.js?v=5"></script>
         <script src="app.js?v=12"></script>
-        <script src="student-images.js?v=1"></script>
         <script src="platform-subscriptions.js?v=4"></script>
         <script src="transfer-student.js?v=1"></script>
         <script src="receive-exams.js?v=1"></script>
@@ -4271,6 +4380,14 @@
              الدوال الكاملة الصحيحة (رفع/استلام الطلاب+المجموعات، ورفع/استلام كل
              الجداول+الإعدادات) موجودة بالفعل داخل app.js ولم تُغيَّر. -->
         <!-- <script src="device-sync.js?v=1"></script> -->
+
+        <!-- ══ نظام الصور الشامل ══ -->
+        <script src="image-upload-system.js?v=1"></script>
+        <!-- ══ إحصائيات المراحل ══ -->
+        <script src="grade-stats.js?v=1"></script>
+        <!-- ══ تعديلات الصور على app.js ══ -->
+        <script src="app-image-patches.js?v=1"></script>
+
         <script>
             // ============================================================
             //  نظام التحديث التلقائي للتطبيق — النسخة المحسّنة
@@ -4629,11 +4746,11 @@
                         if (splash) splash.textContent = name;
                         const navLogo = document.getElementById('nav-logo-name');
                         if (navLogo) navLogo.textContent = name;
-                        document.title = name || 'غازي نور الدين';
+                        document.title = name || 'مستر غازي نور الدين';
                         const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
                         if (metaTitle) metaTitle.setAttribute('content', name);
                     }
-                } catch (e) { }
+                } catch(e) {}
             })();
         </script>
 
