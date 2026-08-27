@@ -1,7 +1,7 @@
 {
-  "name": "غازي نور الدين",
-  "short_name": "غازي نور الدين",
-  "description": "نظام إدارة غازي نور الدين المتكامل",
+  "name": "سنتر العباقره",
+  "short_name": "سنتر العباقره",
+  "description": "نظام إدارة سنتر العباقره المتكامل",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",
@@ -46,22 +46,14 @@
       "label": "الصفحة الرئيسية"
     }
   ],
-  "categories": [
-    "education",
-    "productivity"
-  ],
+  "categories": ["education", "productivity"],
   "shortcuts": [
     {
       "name": "تسجيل الحضور",
       "short_name": "الحضور",
       "description": "فتح نظام تسجيل الحضور مباشرة",
       "url": "./#attendance",
-      "icons": [
-        {
-          "src": "./app-icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "./app-icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

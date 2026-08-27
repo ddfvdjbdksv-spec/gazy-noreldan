@@ -1835,15 +1835,7 @@ function showSection(sectionId, btnEl) {
     if (sectionId === 'whatsapp') renderWABot();
     if (sectionId === 'daily-treasury') renderDailyTreasury();
     if (sectionId === 'settings') renderProgramSettings();
-    if (sectionId === 'login-systems') {
-        if (typeof renderLoginSystemsWithImages === 'function') renderLoginSystemsWithImages();
-        else renderLoginSystemsSection();
-    }
-    if (sectionId === 'dashboard') {
-        setTimeout(() => {
-            if (typeof renderGradeStatsSection === 'function') renderGradeStatsSection();
-        }, 120);
-    }
+    if (sectionId === 'login-systems') renderLoginSystemsSection();
     if (sectionId === 'teachers') {
         if (typeof TeachersModule !== 'undefined') TeachersModule.initTeachersSection();
     }
@@ -2237,19 +2229,9 @@ async function renderStudents() {
             </td>
         </tr>`;
 
-        html += groups[groupName].map(s => {
-            const sImg = (typeof getEntityImage === 'function') ? getEntityImage('student', String(s.id)) : null;
-            const avatarHTML = sImg
-                ? `<div style="width:34px;height:34px;border-radius:50%;background:url('${sImg}') center/cover;display:inline-block;vertical-align:middle;margin-left:8px;box-shadow:0 2px 6px rgba(0,0,0,0.12);flex-shrink:0;"></div>`
-                : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:0.85rem;vertical-align:middle;margin-left:8px;flex-shrink:0;">${s.name.charAt(0)}</div>`;
-            return `
+        html += groups[groupName].map(s => `
         <tr class="fade-in">
-            <td style="padding-right: 1rem;">
-                <div style="display:flex;align-items:center;gap:0;">
-                    ${avatarHTML}
-                    <strong style="vertical-align:middle;">${s.name}</strong>
-                </div>
-            </td>
+            <td style="padding-right: 2rem;"><strong>${s.name}</strong></td>
             <td>${s.phone}</td>
             <td>${s.parentPhone}</td>
             <td>${s.joinDate ? new Date(s.joinDate).toLocaleDateString('ar-EG') : '---'}</td>
@@ -2268,8 +2250,7 @@ async function renderStudents() {
                     <button class="btn" title="حذف" style="padding:5px 10px; color:var(--danger);" onclick="deleteStudent('${s.id}')"><i class="fas fa-trash"></i></button>
                 </div>
             </td>
-        </tr>`;
-        }).join('');
+        </tr>`).join('');
     });
 
     if (studentListPage === 0) {
@@ -6232,23 +6213,7 @@ function viewDetailedProfile(id) {
     if (!s) return;
 
     const group = db.groups.find(g => g.id == s.groupId);
-    // ── صورة الطالب في الملف الشخصي ──
-    const profAvatarEl = document.getElementById('prof-avatar-char');
-    const studentImg = typeof getEntityImage === 'function' ? getEntityImage('student', String(s.id)) : null;
-    if (studentImg && profAvatarEl) {
-        const parent = profAvatarEl.parentElement;
-        if (parent) {
-            parent.style.background = `url('${studentImg}') center/cover no-repeat`;
-            profAvatarEl.style.display = 'none';
-        }
-    } else if (profAvatarEl) {
-        const parent = profAvatarEl.parentElement;
-        if (parent) parent.style.background = '';
-        profAvatarEl.style.display = '';
-        profAvatarEl.innerText = s.name.charAt(0);
-    } else {
-        if (profAvatarEl) profAvatarEl.innerText = s.name.charAt(0);
-    }
+    document.getElementById('prof-avatar-char').innerText = s.name.charAt(0);
     document.getElementById('prof-name').innerText = s.name;
     const jDateRaw = s.joinDate || s.id; // Use id as fallback for old records
     const jDateObj = new Date(jDateRaw);
@@ -7712,21 +7677,14 @@ function updateDashboardStats() {
     if (groupGrid) {
         const groupObj = db.groups.find(g => g.id == currentGroupId);
         if (groupObj) {
-            const grpImg = (typeof getEntityImage === 'function') ? getEntityImage('group', String(groupObj.id)) : null;
-            const grpAvatarHTML = grpImg
-                ? `<div style="width:56px;height:56px;border-radius:14px;background:url('${grpImg}') center/cover;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>`
-                : `<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--primary),#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-users" style="color:white;font-size:1.4rem;"></i></div>`;
             groupGrid.innerHTML = `
-                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center; gap:1rem;">
-                    <div style="display:flex;align-items:center;gap:1rem;">
-                        ${grpAvatarHTML}
-                        <div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
-                            <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
-                            <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
-                        </div>
+                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
+                        <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
+                        <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
                     </div>
-                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px; flex-shrink:0;">
+                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px;">
                         <i class="fas fa-exchange-alt"></i> تغيير المجموعة
                     </button>
                 </div>
@@ -10271,187 +10229,11 @@ function initProgramSettings() {
 }
 
 function ensureSettingsNavItem() {
-    if (document.getElementById('nav-settings')) return;
-
-    const nav = document.querySelector('.nav-links');
-    if (!nav) return;
-
-    const item = document.createElement('li');
-    item.className = 'nav-item';
-    item.innerHTML = `
-        <a href="#" class="nav-link" id="nav-settings" onclick="showSection('settings', this)">
-            <i class="fas fa-sliders-h" style="color:var(--primary-light)"></i>
-            <span>إعدادات البرنامج</span>
-        </a>
-    `;
-
-    const backup = document.getElementById('nav-backup')?.closest('.nav-item');
-    nav.insertBefore(item, backup || nav.lastElementChild);
+    // nav-settings is now static in index.html — nothing to do
 }
 
 function ensureSettingsSection() {
-    if (document.getElementById('settings-section')) return;
-
-    const main = document.querySelector('.main-content');
-    if (!main) return;
-
-    const section = document.createElement('section');
-    section.id = 'settings-section';
-    section.className = 'fade-in';
-    section.style.display = 'none';
-    section.innerHTML = `
-        <div class="settings-grid">
-            <div class="settings-panel">
-                <h3><i class="fas fa-school"></i> بيانات البرنامج</h3>
-                <div class="settings-row">
-                    <label for="settings-center-name">اسم السنتر أو البرنامج</label>
-                    <input id="settings-center-name" class="form-input" type="text">
-                </div>
-                <div class="settings-row">
-                    <label for="settings-sticker-title">عنوان طباعة الملصقات (طباعة كاشير / الأكواد)</label>
-                    <input id="settings-sticker-title" class="form-input" type="text" placeholder="يظهر على الملصقات والأكواد المطبوعة">
-                </div>
-                <div class="settings-row">
-                    <label for="settings-teacher-name">اسم المستخدم / المدير</label>
-                    <input id="settings-teacher-name" class="form-input" type="text">
-                </div>
-                <div class="settings-row">
-                    <label for="settings-phone">رقم التواصل</label>
-                    <input id="settings-phone" class="form-input" type="text">
-                </div>
-                <button class="btn btn-primary" onclick="saveProgramSettings()">
-                    <i class="fas fa-save"></i> حفظ الإعدادات
-                </button>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-comment-dots"></i> رسائل واتساب</h3>
-                <p class="settings-note">متغيرات متاحة: <code>[[name]]</code> (اسم الطالب) &nbsp;·&nbsp; <code>[[center]]</code> (اسم السنتر) &nbsp;·&nbsp; <code>[[teacher]]</code> (اسم المدرس)</p>
-                <div class="settings-row">
-                    <label for="settings-msg-absence">رسالة متابعة الغياب اليومي</label>
-                    <textarea id="settings-msg-absence" class="form-input" style="height:90px;"></textarea>
-                </div>
-                <div class="settings-row">
-                    <label for="settings-msg-monthly">رسالة تقرير الأداء الشهري (الجزء التمهيدي)</label>
-                    <textarea id="settings-msg-monthly" class="form-input" style="height:90px;"></textarea>
-                </div>
-                <div class="settings-row">
-                    <label for="settings-msg-welcome">رسالة تسجيل الحضور / الترحيب</label>
-                    <textarea id="settings-msg-welcome" class="form-input" style="height:90px;"></textarea>
-                </div>
-                <button class="btn btn-primary" onclick="saveMessageSettings()">
-                    <i class="fas fa-save"></i> حفظ الرسائل
-                </button>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-wallet"></i> الاشتراك والمالية</h3>
-                <div class="settings-row">
-                    <label for="settings-monthly-fee">قيمة الاشتراك الافتراضية</label>
-                    <input id="settings-monthly-fee" class="form-input" type="number" min="0" step="1">
-                </div>
-                <div class="settings-row">
-                    <label for="settings-commission">نسبة السنتر الافتراضية %</label>
-                    <input id="settings-commission" class="form-input" type="number" min="0" max="100" step="1">
-                </div>
-                <p class="settings-note">هذه القيم تطبق على السنة الدراسية الحالية، ويمكن تغييرها لكل سنة بشكل مستقل.</p>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-palette"></i> المظهر والتكبير</h3>
-                <div class="settings-actions">
-                    <button id="settings-morning-btn" class="btn settings-choice" onclick="applyAppTheme('morning'); renderProgramSettings();">
-                        <i class="fas fa-sun"></i> صباحي
-                    </button>
-                    <button id="settings-night-btn" class="btn settings-choice" onclick="applyAppTheme('night'); renderProgramSettings();">
-                        <i class="fas fa-moon"></i> ليلي
-                    </button>
-                </div>
-                <div class="settings-actions">
-                    <button class="btn settings-choice" onclick="changeAppZoom(-0.1); renderProgramSettings();">
-                        <i class="fas fa-search-minus"></i> تصغير
-                    </button>
-                    <button class="btn settings-choice" onclick="resetAppZoom(); renderProgramSettings();">
-                        <i class="fas fa-sync-alt"></i> 100%
-                    </button>
-                    <button class="btn settings-choice" onclick="changeAppZoom(0.1); renderProgramSettings();">
-                        <i class="fas fa-search-plus"></i> تكبير
-                    </button>
-                </div>
-                <p class="settings-note">التكبير الحالي: <strong id="settings-zoom-label">100%</strong></p>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-lock"></i> الأمان وكلمات المرور</h3>
-                <div class="settings-actions">
-                    <button class="btn btn-primary" onclick="openPasswordManagement()">
-                        <i class="fas fa-key"></i> إدارة كلمات المرور
-                    </button>
-                    <button class="btn settings-choice" onclick="toggleDayNightMode(); renderProgramSettings();">
-                        <i class="fas fa-adjust"></i> تبديل الوضع
-                    </button>
-                </div>
-                <p class="settings-note">يمكنك تغيير كلمة مرور الدخول، الخزينة، فك الحماية، وأكواد الموظفين.</p>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-print"></i> الطباعة</h3>
-                <div class="settings-row">
-                    <label for="settings-print-width">عرض الطابعة الحرارية الافتراضي</label>
-                    <select id="settings-print-width" class="form-input">
-                        <option value="58mm">58mm</option>
-                        <option value="80mm">80mm</option>
-                    </select>
-                </div>
-                <button class="btn settings-choice" onclick="generatePrintCalibration()">
-                    <i class="fas fa-ruler"></i> طباعة معايرة
-                </button>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-shield-alt"></i> النسخ الاحتياطي</h3>
-                <div class="settings-actions">
-                    <button class="btn btn-primary" onclick="exportData()">
-                        <i class="fas fa-download"></i> نسخة أمان الآن
-                    </button>
-                    <label class="btn settings-choice" for="settings-import-file">
-                        <i class="fas fa-upload"></i> استيراد نسخة
-                    </label>
-                    <input id="settings-import-file" type="file" accept=".js,.json" style="display:none" onchange="importData(this)">
-                </div>
-                <p class="settings-note">احفظ نسخة احتياطية قبل أي تعديل كبير أو نقل البرنامج لجهاز آخر. الملف المُصدَّر يعمل على أي جهاز أو متصفح.</p>
-            </div>
-
-            <div class="settings-panel">
-                <h3><i class="fas fa-clock"></i> تصفير العهدة اليومية التلقائي</h3>
-                <div class="settings-row">
-                    <label for="settings-archive-hour">ساعة التصفير والأرشفة التلقائية</label>
-                    <select id="settings-archive-hour" class="form-input" onchange="saveTreasuryArchiveHour(this.value)">
-                        <option value="0">12:00 منتصف الليل (12 AM)</option>
-                        <option value="1">1:00 ص</option>
-                        <option value="2">2:00 ص</option>
-                        <option value="3">3:00 ص</option>
-                        <option value="4">4:00 ص</option>
-                        <option value="5">5:00 ص</option>
-                        <option value="6">6:00 ص</option>
-                        <option value="7">7:00 ص</option>
-                        <option value="8">8:00 ص</option>
-                        <option value="9">9:00 م</option>
-                        <option value="21">9:00 م</option>
-                        <option value="22">10:00 م</option>
-                        <option value="23">11:00 م</option>
-                    </select>
-                </div>
-                <div class="settings-actions" style="margin-top:10px;">
-                    <button class="btn btn-primary" onclick="runManualTreasuryArchiveNow()">
-                        <i class="fas fa-archive"></i> أرشفة العهدة الآن يدوياً
-                    </button>
-                </div>
-                <p class="settings-note">عند الوصول للساعة المحددة يتم حفظ العهدة اليومية في الأرشيف تلقائياً وتصفيرها. يمكنك أيضاً الأرشفة اليدوية في أي وقت.</p>
-            </div>
-        </div>
-    `;
-    main.appendChild(section);
+    // settings-section is now static in index.html — nothing to do
 }
 
 function renderProgramSettings() {
@@ -10500,6 +10282,59 @@ function renderProgramSettings() {
         archiveHourSelect.value = savedHour;
     }
 
+    // ── تحميل اللوجو في الإعدادات ──
+    renderLogoPreview();
+}
+
+// ============================================================
+//  وظائف اللوجو
+// ============================================================
+function renderLogoPreview() {
+    const savedLogo = localStorage.getItem('edu_program_logo');
+    const img = document.getElementById('logo-preview-img');
+    const placeholder = document.getElementById('logo-preview-placeholder');
+    if (!img || !placeholder) return;
+    if (savedLogo) {
+        img.src = savedLogo;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+    } else {
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+    }
+}
+
+function handleLogoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        localStorage.setItem('edu_program_logo', dataUrl);
+        renderLogoPreview();
+        applySplashLogo();
+        showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeProgramLogo() {
+    if (!confirm('هل تريد حذف اللوجو الحالي؟')) return;
+    localStorage.removeItem('edu_program_logo');
+    renderLogoPreview();
+    applySplashLogo();
+    showNotification('تم حذف اللوجو', 'success');
+}
+
+function applySplashLogo() {
+    const savedLogo = localStorage.getItem('edu_program_logo');
+    const splashLogoContainer = document.querySelector('.splash-logo');
+    if (!splashLogoContainer) return;
+    if (savedLogo) {
+        splashLogoContainer.innerHTML = `<img src="${savedLogo}" alt="لوجو البرنامج" style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">`;
+    } else {
+        splashLogoContainer.innerHTML = `<i class="fas fa-university"></i>`;
+    }
 }
 
 // ============================================================
@@ -12323,6 +12158,7 @@ window.onload = async () => {
     if (typeof initFilters === 'function') initFilters(); // Initialize other filters
     if (typeof initStudentGroups === 'function') initStudentGroups();
     initExperienceEnhancements();
+    applySplashLogo(); // تطبيق لوجو البرنامج على شاشة الدخول
 
     // Recover from file if needed (Legacy / Manual Check)
     if (localStorage.length <= 1 && window.edu_initial_data && window.edu_initial_data.db_state) {
@@ -12435,6 +12271,7 @@ const exposures = {
     exportData, exportStudentsToFirebase, importData, importFromFolder, showCycleArchive, viewArchivedCycle,
     applyAppTheme, toggleDayNightMode, initExperienceEnhancements, updateExperienceSummary,
     initProgramSettings, renderProgramSettings, saveProgramSettings,
+    handleLogoUpload, removeProgramLogo, applySplashLogo, renderLogoPreview,
     prepareHandoverDownload: async () => {
         showNotification('جاري تجهيز نسخة كاملة للنقل...', 'info');
         const snapshot = {};
@@ -13296,6 +13133,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const splash = document.getElementById('app-splash');
     if (splash) {
         splash.style.display = 'flex';
+        // تطبيق اللوجو المحفوظ على شاشة الدخول فوراً
+        const _savedLogo = localStorage.getItem('edu_program_logo');
+        const _splashLogoEl = splash.querySelector('.splash-logo');
+        if (_savedLogo && _splashLogoEl) {
+            _splashLogoEl.innerHTML = '<img src="' + _savedLogo + '" alt="لوجو البرنامج" style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
+        }
         // تأخير بسيط لضمان ظهور الـ splash قبل أي عملية ثقيلة
         await new Promise(r => setTimeout(r, 50));
         document.getElementById('app-password-input')?.focus();

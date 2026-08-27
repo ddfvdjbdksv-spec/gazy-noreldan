@@ -148,10 +148,10 @@
           border:1.5px solid transparent; position:relative; overflow:hidden;">
           <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:linear-gradient(180deg,#4f46e5,#7c3aed);border-radius:0 18px 18px 0;"></div>
           <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem;">
-            ${(typeof getEntityImage === 'function' && getEntityImage('teacher', String(t.id)))
-              ? `<div style="width:48px;height:48px;border-radius:50%;background:url('${getEntityImage('teacher', String(t.id))}') center/cover;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.15);"></div>`
-              : `<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.2rem;flex-shrink:0;">${t.name.charAt(0)}</div>`
-            }
+            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+              display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.2rem;flex-shrink:0;">
+              ${t.name.charAt(0)}
+            </div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:800;font-size:1rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(t.name)}</div>
               <div style="font-size:0.82rem;color:var(--text-muted);">${_esc(t.subject || 'لا توجد مادة')}</div>
@@ -195,40 +195,13 @@
     const assignments = teacher?.assignments || [{ grade: '', groupId: '', pricePerSession: '' }];
     const scheduleItems = teacher ? _sessions.filter(s => s.teacherId === editId) : [];
 
-    // جلب صورة المدرس الحالية إن وُجدت
-    const teacherImgData = editId && typeof getEntityImage === 'function' ? getEntityImage('teacher', String(editId)) : null;
-    const teacherPreviewStyle = teacherImgData
-      ? `background:url('${teacherImgData}') center/cover no-repeat;`
-      : `background:linear-gradient(135deg,var(--primary,#4f46e5),#7c3aed);`;
-    const teacherPreviewInner = teacherImgData
-      ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.45);padding:3px 0;text-align:center;font-size:9px;color:white;opacity:0;" class="img-overlay-label">تغيير</div>`
-      : `<i class="fas fa-camera" style="font-size:22px;color:white;opacity:0.9;"></i>`;
-
     const modal = _createModal('teacher-form-modal', `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
         <h2 style="margin:0;color:var(--primary);font-size:1.2rem;font-weight:800;">
           <i class="fas fa-chalkboard-teacher" style="margin-left:8px;"></i>
           ${editId ? 'تعديل بيانات المدرس' : 'إضافة مدرس جديد'}
         </h2>
         <button onclick="_closeModal('teacher-form-modal')" style="background:var(--bg-light);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;"><i class="fas fa-times"></i></button>
-      </div>
-
-      <!-- صورة المدرس -->
-      <div style="display:flex;align-items:center;gap:1rem;padding:0.9rem;background:var(--bg-light,#f8fafc);border-radius:14px;margin-bottom:1.2rem;">
-        <div id="img-preview-teacher-modal"
-             onclick="document.getElementById('img-input-teacher-modal').click()"
-             style="width:70px;height:70px;border-radius:50%;${teacherPreviewStyle}
-                    cursor:pointer;display:flex;align-items:center;justify-content:center;
-                    border:3px dashed rgba(79,70,229,0.3);flex-shrink:0;position:relative;overflow:hidden;transition:all 0.2s;">
-          ${teacherPreviewInner}
-        </div>
-        <div>
-          <div style="font-weight:700;font-size:0.88rem;margin-bottom:4px;">صورة المدرس</div>
-          <div style="font-size:0.75rem;color:var(--text-muted,#64748b);margin-bottom:6px;">اضغط على الصورة لتحميل صورة شخصية</div>
-          <input type="file" id="img-input-teacher-modal" accept="image/*" style="display:none;"
-            onchange="handleImageUpload(this,'teacher','${editId || ''}','img-preview-teacher-modal')">
-          ${teacherImgData ? `<button type="button" onclick="removeEntityImageUI('teacher','${editId}','img-preview-teacher-modal','img-input-teacher-modal')" style="font-size:0.72rem;color:#ef4444;background:none;border:none;cursor:pointer;padding:0;"><i class='fas fa-trash-alt'></i> حذف الصورة</button>` : ''}
-        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.2rem;">
@@ -426,13 +399,6 @@
       _teachers.push({ id: teacherId, name, subject, assignments, createdAt: new Date().toISOString() });
     }
     await saveStore('teachers', _teachers);
-
-    // ── حفظ صورة المدرس إن وُجدت ──
-    const teacherImgInput = document.getElementById('img-input-teacher-modal');
-    if (teacherImgInput && teacherImgInput.dataset.compressed && typeof saveEntityImage === 'function') {
-      saveEntityImage('teacher', String(teacherId), teacherImgInput.dataset.compressed);
-      teacherImgInput.dataset.compressed = '';
-    }
 
     _closeModal('teacher-form-modal');
     renderTeachersGrid();
