@@ -1835,7 +1835,15 @@ function showSection(sectionId, btnEl) {
     if (sectionId === 'whatsapp') renderWABot();
     if (sectionId === 'daily-treasury') renderDailyTreasury();
     if (sectionId === 'settings') renderProgramSettings();
-    if (sectionId === 'login-systems') renderLoginSystemsSection();
+    if (sectionId === 'login-systems') {
+        if (typeof renderLoginSystemsWithImages === 'function') renderLoginSystemsWithImages();
+        else renderLoginSystemsSection();
+    }
+    if (sectionId === 'dashboard') {
+        setTimeout(() => {
+            if (typeof renderGradeStatsSection === 'function') renderGradeStatsSection();
+        }, 120);
+    }
     if (sectionId === 'teachers') {
         if (typeof TeachersModule !== 'undefined') TeachersModule.initTeachersSection();
     }
@@ -2229,9 +2237,19 @@ async function renderStudents() {
             </td>
         </tr>`;
 
-        html += groups[groupName].map(s => `
+        html += groups[groupName].map(s => {
+            const sImg = (typeof getEntityImage === 'function') ? getEntityImage('student', String(s.id)) : null;
+            const avatarHTML = sImg
+                ? `<div style="width:34px;height:34px;border-radius:50%;background:url('${sImg}') center/cover;display:inline-block;vertical-align:middle;margin-left:8px;box-shadow:0 2px 6px rgba(0,0,0,0.12);flex-shrink:0;"></div>`
+                : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:inline-flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:0.85rem;vertical-align:middle;margin-left:8px;flex-shrink:0;">${s.name.charAt(0)}</div>`;
+            return `
         <tr class="fade-in">
-            <td style="padding-right: 2rem;"><strong>${s.name}</strong></td>
+            <td style="padding-right: 1rem;">
+                <div style="display:flex;align-items:center;gap:0;">
+                    ${avatarHTML}
+                    <strong style="vertical-align:middle;">${s.name}</strong>
+                </div>
+            </td>
             <td>${s.phone}</td>
             <td>${s.parentPhone}</td>
             <td>${s.joinDate ? new Date(s.joinDate).toLocaleDateString('ar-EG') : '---'}</td>
@@ -2250,7 +2268,8 @@ async function renderStudents() {
                     <button class="btn" title="حذف" style="padding:5px 10px; color:var(--danger);" onclick="deleteStudent('${s.id}')"><i class="fas fa-trash"></i></button>
                 </div>
             </td>
-        </tr>`).join('');
+        </tr>`;
+        }).join('');
     });
 
     if (studentListPage === 0) {
@@ -6213,7 +6232,23 @@ function viewDetailedProfile(id) {
     if (!s) return;
 
     const group = db.groups.find(g => g.id == s.groupId);
-    document.getElementById('prof-avatar-char').innerText = s.name.charAt(0);
+    // ── صورة الطالب في الملف الشخصي ──
+    const profAvatarEl = document.getElementById('prof-avatar-char');
+    const studentImg = typeof getEntityImage === 'function' ? getEntityImage('student', String(s.id)) : null;
+    if (studentImg && profAvatarEl) {
+        const parent = profAvatarEl.parentElement;
+        if (parent) {
+            parent.style.background = `url('${studentImg}') center/cover no-repeat`;
+            profAvatarEl.style.display = 'none';
+        }
+    } else if (profAvatarEl) {
+        const parent = profAvatarEl.parentElement;
+        if (parent) parent.style.background = '';
+        profAvatarEl.style.display = '';
+        profAvatarEl.innerText = s.name.charAt(0);
+    } else {
+        if (profAvatarEl) profAvatarEl.innerText = s.name.charAt(0);
+    }
     document.getElementById('prof-name').innerText = s.name;
     const jDateRaw = s.joinDate || s.id; // Use id as fallback for old records
     const jDateObj = new Date(jDateRaw);
@@ -7677,14 +7712,21 @@ function updateDashboardStats() {
     if (groupGrid) {
         const groupObj = db.groups.find(g => g.id == currentGroupId);
         if (groupObj) {
+            const grpImg = (typeof getEntityImage === 'function') ? getEntityImage('group', String(groupObj.id)) : null;
+            const grpAvatarHTML = grpImg
+                ? `<div style="width:56px;height:56px;border-radius:14px;background:url('${grpImg}') center/cover;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>`
+                : `<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--primary),#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-users" style="color:white;font-size:1.4rem;"></i></div>`;
             groupGrid.innerHTML = `
-                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
-                        <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
-                        <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
+                <div class="card active-ctx" style="padding: 1.5rem; border-right: 6px solid var(--primary); grid-column: span 3; display: flex; justify-content: space-between; align-items: center; gap:1rem;">
+                    <div style="display:flex;align-items:center;gap:1rem;">
+                        ${grpAvatarHTML}
+                        <div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted);">المجموعة النشطة حالياً</div>
+                            <div style="font-weight: 800; font-size: 1.8rem; color: var(--text-main);">${groupObj.name}</div>
+                            <div style="color: var(--primary); font-weight: 600;">${groupObj.time}</div>
+                        </div>
                     </div>
-                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px;">
+                    <button class="btn" onclick="showGradeSelection()" style="background: var(--bg-light); padding: 0.8rem 1.5rem; border-radius: 12px; flex-shrink:0;">
                         <i class="fas fa-exchange-alt"></i> تغيير المجموعة
                     </button>
                 </div>
@@ -10229,11 +10271,26 @@ function initProgramSettings() {
 }
 
 function ensureSettingsNavItem() {
-    // nav-settings is now static in index.html — nothing to do
+    if (document.getElementById('nav-settings')) return;
+
+    const nav = document.querySelector('.nav-links');
+    if (!nav) return;
+
+    const item = document.createElement('li');
+    item.className = 'nav-item';
+    item.innerHTML = `
+        <a href="#" class="nav-link" id="nav-settings" onclick="showSection('settings', this)">
+            <i class="fas fa-sliders-h" style="color:var(--primary-light)"></i>
+            <span>إعدادات البرنامج</span>
+        </a>
+    `;
+
+    const backup = document.getElementById('nav-backup')?.closest('.nav-item');
+    nav.insertBefore(item, backup || nav.lastElementChild);
 }
 
 function ensureSettingsSection() {
-    // settings-section is now static in index.html — nothing to do
+    // settings-section موجود ثابت في index.html — لا حاجة لإنشائه ديناميكياً
 }
 
 function renderProgramSettings() {
@@ -10287,10 +10344,15 @@ function renderProgramSettings() {
 }
 
 // ============================================================
-//  وظائف اللوجو
+//  وظائف اللوجو — مرتبطة بنظام _imageStore الخاص بالمشروع
 // ============================================================
+
+/** عرض معاينة اللوجو في صفحة الإعدادات */
 function renderLogoPreview() {
-    const savedLogo = localStorage.getItem('edu_program_logo');
+    // نجلب من _imageStore إذا كان متاحاً، وإلا من localStorage
+    const savedLogo = (typeof getEntityImage === 'function'
+        ? getEntityImage('program', 'logo') : null)
+        || localStorage.getItem('edu_program_logo') || null;
     const img = document.getElementById('logo-preview-img');
     const placeholder = document.getElementById('logo-preview-placeholder');
     if (!img || !placeholder) return;
@@ -10304,36 +10366,62 @@ function renderLogoPreview() {
     }
 }
 
+/** معالجة رفع اللوجو — متوافقة مع image-upload-system.js أو تعمل بمفردها */
 function handleLogoUpload(input) {
     const file = input.files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        showNotification('يرجى اختيار ملف صورة صالح', 'error');
+        return;
+    }
     const reader = new FileReader();
     reader.onload = function(e) {
         const dataUrl = e.target.result;
-        localStorage.setItem('edu_program_logo', dataUrl);
-        renderLogoPreview();
-        applySplashLogo();
-        showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول', 'success');
+        // نستخدم _compressImage من image-upload-system.js إذا كانت متاحة، وإلا نحفظ مباشرة
+        const doSave = function(compressed) {
+            // حفظ في _imageStore إذا كان النظام محمَّلاً
+            if (typeof saveEntityImage === 'function') {
+                saveEntityImage('program', 'logo', compressed);
+            }
+            // حفظ احتياطي دائم في localStorage
+            try { localStorage.setItem('edu_program_logo', compressed); } catch(err) {}
+            renderLogoPreview();
+            applySplashLogo();
+            showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول', 'success');
+        };
+        if (typeof _compressImage === 'function') {
+            _compressImage(dataUrl, doSave, 400, 0.85);
+        } else {
+            doSave(dataUrl);
+        }
     };
     reader.readAsDataURL(file);
 }
 
+/** حذف اللوجو من _imageStore و localStorage */
 function removeProgramLogo() {
     if (!confirm('هل تريد حذف اللوجو الحالي؟')) return;
-    localStorage.removeItem('edu_program_logo');
+    if (typeof deleteEntityImage === 'function') deleteEntityImage('program', 'logo');
+    try { localStorage.removeItem('edu_program_logo'); } catch(err) {}
     renderLogoPreview();
     applySplashLogo();
     showNotification('تم حذف اللوجو', 'success');
 }
 
+/** تطبيق اللوجو على شاشة إدخال كلمة المرور */
 function applySplashLogo() {
-    const savedLogo = localStorage.getItem('edu_program_logo');
+    // نجلب من _imageStore إذا كان محمَّلاً، وإلا من localStorage
+    const savedLogo = (typeof getEntityImage === 'function'
+        ? getEntityImage('program', 'logo') : null)
+        || localStorage.getItem('edu_program_logo') || null;
     const splashLogoContainer = document.querySelector('.splash-logo');
     if (!splashLogoContainer) return;
     if (savedLogo) {
-        splashLogoContainer.innerHTML = `<img src="${savedLogo}" alt="لوجو البرنامج" style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">`;
+        splashLogoContainer.innerHTML =
+            '<img src="' + savedLogo + '" alt="لوجو البرنامج" ' +
+            'style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
     } else {
-        splashLogoContainer.innerHTML = `<i class="fas fa-university"></i>`;
+        splashLogoContainer.innerHTML = '<i class="fas fa-university"></i>';
     }
 }
 
@@ -13133,11 +13221,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const splash = document.getElementById('app-splash');
     if (splash) {
         splash.style.display = 'flex';
-        // تطبيق اللوجو المحفوظ على شاشة الدخول فوراً
-        const _savedLogo = localStorage.getItem('edu_program_logo');
+        // تطبيق اللوجو فوراً من _imageStore أو localStorage قبل أي شيء
+        const _earlyLogo = (function() {
+            try {
+                const _store = JSON.parse(localStorage.getItem('edu_image_store') || '{}');
+                return _store['program_logo'] || localStorage.getItem('edu_program_logo') || null;
+            } catch(e) { return null; }
+        })();
         const _splashLogoEl = splash.querySelector('.splash-logo');
-        if (_savedLogo && _splashLogoEl) {
-            _splashLogoEl.innerHTML = '<img src="' + _savedLogo + '" alt="لوجو البرنامج" style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
+        if (_earlyLogo && _splashLogoEl) {
+            _splashLogoEl.innerHTML = '<img src="' + _earlyLogo + '" alt="لوجو البرنامج" style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
         }
         // تأخير بسيط لضمان ظهور الـ splash قبل أي عملية ثقيلة
         await new Promise(r => setTimeout(r, 50));
