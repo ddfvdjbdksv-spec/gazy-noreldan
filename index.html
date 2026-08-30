@@ -103,7 +103,7 @@
                 <div class="splash-logo" style="margin-bottom: 1.5rem;">
                     <i class="fas fa-university"></i>
                 </div>
-                <h1 class="splash-title" id="splash-center-name">مستر غازي نور الدين</h1>
+                <h1 class="splash-title" id="splash-center-name">نظام الإدارة التعليمية</h1>
                 <p class="splash-subtitle">نظام الإدارة المتكامل</p>
 
                 <div id="password-screen">
@@ -141,8 +141,15 @@
 
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <i class="fas fa-book-open"></i> <span id="nav-logo-name">مستر غازي نور الدين</span>
+        <div class="logo" style="flex-direction:column; align-items:center; gap:0.4rem; padding:1rem 0.5rem;">
+            <div id="sidebar-logo-img-wrap" style="display:none; margin-bottom:0.3rem;">
+                <img id="sidebar-logo-img" src="" alt="لوجو"
+                    style="max-width:80px; max-height:64px; border-radius:10px; object-fit:contain;">
+            </div>
+            <div id="sidebar-logo-icon-wrap" style="display:flex; align-items:center; gap:0.5rem;">
+                <i class="fas fa-book-open"></i>
+                <span id="nav-logo-name" style="font-size:0.85rem; line-height:1.3;">نظام الإدارة</span>
+            </div>
         </div>
         <div id="current-grade-badge"
             style="text-align: center; margin-bottom: 1.5rem; padding: 0.5rem; background: var(--bg-light); border-radius: 10px; font-weight: 700; color: var(--primary);">
@@ -299,13 +306,7 @@
                         <span>تفعيل كورسات المنصة</span>
                     </a>
                 </li>
-                <li class="nav-item" data-rbac="all" data-secretary-visible
-                    style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-                    <button class="btn btn-primary" onclick="enterPortalMode()"
-                        style="width: 100%; border-radius: 12px; height: 50px;">
-                        <i class="fas fa-door-open"></i> بوابة الحضور
-                    </button>
-                </li>
+
             </ul>
         </nav>
         <div style="padding: 1rem; border-top: 1px solid var(--border); margin-top: auto;">
@@ -359,11 +360,15 @@
                 </div>
 
                 <div class="user-profile">
-                    <div id="grade-label"
-                        style="margin-left: 1rem; font-weight: 700; color: var(--primary); padding: 0.3rem 0.8rem; background: rgba(79, 70, 229, 0.1); border-radius: 50px;">
-                        ... الدراسية</div>
-                    <div class="avatar">M</div>
-                    <span style="font-weight: 600;">المدير العام</span>
+                    <div id="grade-label" style="display:none;"></div>
+                    <div id="user-avatar" class="avatar"
+                        style="position:relative; cursor:pointer; overflow:hidden; padding:0; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;"
+                        title="صورة المشرف">
+                        <span id="user-avatar-letter" style="font-size:1rem;">A</span>
+                        <img id="user-avatar-img" src="" alt="المشرف"
+                            style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%; position:absolute; top:0; left:0;">
+                    </div>
+                    <span style="font-weight: 600;" id="user-role-label">المشرف</span>
                 </div>
             </div>
         </header>
@@ -2363,7 +2368,49 @@
                             <i class="fas fa-trash"></i> حذف اللوجو
                         </button>
                     </div>
-                    <p class="settings-note">يظهر اللوجو في شاشة إدخال كلمة المرور عند فتح البرنامج.</p>
+                    <p class="settings-note">يظهر اللوجو في شاشة إدخال كلمة المرور وفي الشريط الجانبي للبرنامج.</p>
+                </div>
+
+                <div class="settings-panel">
+                    <h3><i class="fas fa-user-circle"></i> صورة المشرف</h3>
+                    <div class="settings-row" style="text-align:center;">
+                        <div id="admin-photo-preview-container" style="margin-bottom:1rem;">
+                            <img id="admin-photo-preview-img" src="" alt="صورة المشرف"
+                                style="width:100px; height:100px; border-radius:50%; display:none; border:3px solid var(--primary); object-fit:cover;">
+                            <div id="admin-photo-preview-placeholder"
+                                style="width:100px; height:100px; margin:0 auto; background:var(--bg-light); border-radius:50%; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:2.5rem;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        </div>
+                        <label class="btn btn-primary" for="admin-photo-upload-input" style="cursor:pointer; display:inline-block; margin-bottom:0.7rem;">
+                            <i class="fas fa-upload"></i> اختيار صورة المشرف
+                        </label>
+                        <input id="admin-photo-upload-input" type="file" accept="image/*" style="display:none" onchange="handleAdminPhotoUpload(this)">
+                        <br>
+                        <button class="btn" style="background:var(--bg-light); color:var(--danger);" onclick="removeAdminPhoto()">
+                            <i class="fas fa-trash"></i> حذف الصورة
+                        </button>
+                    </div>
+                    <p class="settings-note">تظهر صورة المشرف في الهيدر بجانب كلمة "المشرف".</p>
+                </div>
+
+                <div class="settings-panel">
+                    <h3><i class="fas fa-calendar-alt"></i> السنوات الدراسية</h3>
+                    <p class="settings-note">أضف السنوات الدراسية وحدد السنة النشطة الحالية. البيانات مرتبطة بكل سنة بشكل مستقل.</p>
+                    <div style="display:flex; gap:0.6rem; margin-bottom:1rem;">
+                        <input id="new-academic-year-input" class="form-input" type="text"
+                            placeholder="مثال: 2025 / 2026"
+                            style="flex:1;"
+                            onkeydown="if(event.key==='Enter') addAcademicYear()">
+                        <button class="btn btn-primary" onclick="addAcademicYear()" style="white-space:nowrap;">
+                            <i class="fas fa-plus"></i> إضافة
+                        </button>
+                    </div>
+                    <div id="academic-years-container">
+                        <p style="color:var(--text-muted); text-align:center; padding:1rem;">
+                            <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                        </p>
+                    </div>
                 </div>
 
                 <div class="settings-panel">

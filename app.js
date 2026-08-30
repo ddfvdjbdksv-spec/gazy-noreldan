@@ -125,14 +125,18 @@ const RBAC = (() => {
                 });
             }
 
-            // ── الـ header badge ──
-            const userSpan = document.querySelector('.user-profile span');
+            // ── الـ header badge (المشرف/السكرتير/الموظف) ──
+            const userSpan = document.getElementById('user-role-label')
+                          || document.querySelector('.user-profile span');
             if (userSpan) {
-                userSpan.textContent = role === 'admin' ? 'المشرف' : (role === 'secretary' ? (_secretaryName || 'سكرتير') : 'الموظف');
+                userSpan.textContent = role === 'admin' ? 'المشرف'
+                    : (role === 'secretary' ? (_secretaryName || 'سكرتير') : 'الموظف');
             }
-            const avatarEl = document.querySelector('.user-profile .avatar');
+            const avatarEl = document.getElementById('user-avatar')
+                          || document.querySelector('.user-profile .avatar');
             if (avatarEl) {
-                avatarEl.textContent = role === 'admin' ? 'A' : (role === 'secretary' ? (_secretaryName ? _secretaryName.charAt(0) : 'س') : 'E');
+                avatarEl.textContent = role === 'admin' ? 'A'
+                    : (role === 'secretary' ? (_secretaryName ? _secretaryName.charAt(0).toUpperCase() : 'س') : 'E');
                 avatarEl.style.background = role === 'admin'
                     ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
                     : (role === 'secretary'
@@ -609,6 +613,35 @@ const db = {
         // 5. Load ALL data into memory
         const masterSettings = JSON.parse(localStorage.getItem('edu_master_settings')) || {};
         this._settings = masterSettings;
+
+        // ── استعادة appProfile المحفوظ (لو تلف أو اختفى من _settings) ──
+        if (!this._settings.appProfile || !this._settings.appProfile.centerName) {
+            const savedProfile = localStorage.getItem('edu_program_profile');
+            if (savedProfile) {
+                try {
+                    const parsed = JSON.parse(savedProfile);
+                    if (parsed && parsed.centerName) {
+                        this._settings.appProfile = parsed;
+                        localStorage.setItem('edu_master_settings', JSON.stringify(this._settings));
+                    }
+                } catch(e) {}
+            }
+        }
+
+        // ── استعادة السنوات الأكاديمية من النسخة الاحتياطية (لو اختفت) ──
+        if (!this._settings.academicYears || !Array.isArray(this._settings.academicYears) || this._settings.academicYears.length === 0) {
+            const backup = localStorage.getItem('edu_academic_years_backup');
+            if (backup) {
+                try {
+                    const parsed = JSON.parse(backup);
+                    if (parsed && Array.isArray(parsed.years) && parsed.years.length > 0) {
+                        this._settings.academicYears = parsed.years;
+                        if (parsed.activeId) this._settings.activeAcademicYear = parsed.activeId;
+                        localStorage.setItem('edu_master_settings', JSON.stringify(this._settings));
+                    }
+                } catch(e) {}
+            }
+        }
         this.groups = await StorageEngine.getAll('groups');
         this.cycles = await StorageEngine.getAll('cycles');
         this.students = await StorageEngine.getAll('students');
@@ -10223,45 +10256,38 @@ function initExperienceEnhancements() {
 }
 
 function getProgramProfile() {
+    // إنشاء appProfile بـ defaults فقط لو مفيش بيانات محفوظة أصلاً
     if (!db._settings.appProfile) {
         db._settings.appProfile = {
-            centerName: 'مستر غازي نور الدين',
+            centerName: '',
             teacherName: '',
-            stickerTitle: 'مستر غازي نور الدين',
+            stickerTitle: '',
             phone: ''
         };
     }
-    // ضمان وجود centerName الافتراضي لو كان فارغًا
-    if (!db._settings.appProfile.centerName) {
-        db._settings.appProfile.centerName = 'مستر غازي نور الدين';
-    }
+    // ✅ لا نستبدل centerName المحفوظ بـ default — المستخدم هو من يحدده
     return db._settings.appProfile;
 }
 
 function applyProgramProfile() {
     const profile = getProgramProfile();
-    const centerDisplay = profile.centerName || 'مستر غازي نور الدين';
+    const centerDisplay = profile.centerName || 'نظام الإدارة التعليمية';
     document.title = `${centerDisplay} | نظام الإدارة`;
 
-    // شعار الشريط الجانبي
+    // ── اسم البرنامج في الشريط الجانبي ──
     const logoSpan = document.getElementById('nav-logo-name');
-    if (logoSpan) {
-        logoSpan.textContent = centerDisplay;
-    } else {
-        const logo = document.querySelector('.logo');
-        if (logo) logo.innerHTML = `<i class="fas fa-book-open"></i> ${centerDisplay}`;
-    }
+    if (logoSpan) logoSpan.textContent = centerDisplay;
 
-    // شاشة البداية (Splash)
+    // ── اسم البرنامج في شاشة الدخول ──
     const splash = document.getElementById('splash-center-name');
     if (splash) splash.textContent = centerDisplay;
 
-    // meta tag لـ PWA
+    // ── meta tag لـ PWA ──
     const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (metaTitle) metaTitle.setAttribute('content', centerDisplay);
 
-    const userName = document.querySelector('.user-profile span');
-    if (userName) userName.innerText = profile.teacherName || '';
+    // ── لا نتعارض مع user-role-label (المشرف/السكرتير) ──
+    // الـ user-role-label يُدار بواسطة rbac.updateUI / الـ role badge
 }
 
 function initProgramSettings() {
@@ -10341,6 +10367,12 @@ function renderProgramSettings() {
 
     // ── تحميل اللوجو في الإعدادات ──
     renderLogoPreview();
+
+    // ── تحميل صورة المشرف في الإعدادات ──
+    renderAdminPhotoPreview();
+
+    // ── تحميل السنوات الدراسية ──
+    renderAcademicYearsSettings();
 }
 
 // ============================================================
@@ -10387,7 +10419,7 @@ function handleLogoUpload(input) {
             try { localStorage.setItem('edu_program_logo', compressed); } catch(err) {}
             renderLogoPreview();
             applySplashLogo();
-            showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول', 'success');
+            showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول والشريط الجانبي', 'success');
         };
         if (typeof _compressImage === 'function') {
             _compressImage(dataUrl, doSave, 400, 0.85);
@@ -10408,21 +10440,123 @@ function removeProgramLogo() {
     showNotification('تم حذف اللوجو', 'success');
 }
 
-/** تطبيق اللوجو على شاشة إدخال كلمة المرور */
+/** تطبيق اللوجو على شاشة الدخول + الشريط الجانبي */
 function applySplashLogo() {
-    // نجلب من _imageStore إذا كان محمَّلاً، وإلا من localStorage
     const savedLogo = (typeof getEntityImage === 'function'
         ? getEntityImage('program', 'logo') : null)
         || localStorage.getItem('edu_program_logo') || null;
+
+    // ── شاشة الدخول ──────────────────────────────────────────────────
     const splashLogoContainer = document.querySelector('.splash-logo');
-    if (!splashLogoContainer) return;
-    if (savedLogo) {
-        splashLogoContainer.innerHTML =
-            '<img src="' + savedLogo + '" alt="لوجو البرنامج" ' +
-            'style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
-    } else {
-        splashLogoContainer.innerHTML = '<i class="fas fa-university"></i>';
+    if (splashLogoContainer) {
+        if (savedLogo) {
+            splashLogoContainer.innerHTML =
+                '<img src="' + savedLogo + '" alt="لوجو البرنامج" ' +
+                'style="max-width:110px; max-height:110px; border-radius:16px; object-fit:contain;">';
+        } else {
+            splashLogoContainer.innerHTML = '<i class="fas fa-university"></i>';
+        }
     }
+
+    // ── الشريط الجانبي (sidebar) ──────────────────────────────────────
+    const sidebarImgWrap  = document.getElementById('sidebar-logo-img-wrap');
+    const sidebarIconWrap = document.getElementById('sidebar-logo-icon-wrap');
+    const sidebarImg      = document.getElementById('sidebar-logo-img');
+    if (sidebarImgWrap && sidebarIconWrap && sidebarImg) {
+        if (savedLogo) {
+            sidebarImg.src = savedLogo;
+            sidebarImgWrap.style.display  = 'block';
+            sidebarIconWrap.style.display = 'none';
+        } else {
+            sidebarImgWrap.style.display  = 'none';
+            sidebarIconWrap.style.display = 'flex';
+        }
+    }
+}
+
+// ── صورة المشرف ──────────────────────────────────────────────────────────
+
+/** جلب بيانات صورة المشرف */
+function _getAdminPhoto() {
+    // 1. من _imageStore (المحمَّل بعد image-upload-system.js)
+    if (typeof getEntityImage === 'function') {
+        const fromStore = getEntityImage('admin', 'photo');
+        if (fromStore) return fromStore;
+    }
+    // 2. من edu_image_store مباشرة في localStorage (لو _imageStore لم يُحمَّل بعد)
+    try {
+        const store = JSON.parse(localStorage.getItem('edu_image_store') || '{}');
+        if (store['admin_photo']) return store['admin_photo'];
+    } catch(e) {}
+    // 3. النسخة الاحتياطية المباشرة
+    return localStorage.getItem('edu_admin_photo') || null;
+}
+
+/** تطبيق صورة المشرف على الهيدر */
+function applyAdminPhoto() {
+    const photo = _getAdminPhoto();
+    const avatarLetter = document.getElementById('user-avatar-letter');
+    const avatarImg    = document.getElementById('user-avatar-img');
+    if (!avatarImg) return;
+    if (photo) {
+        avatarImg.src = photo;
+        avatarImg.style.display = 'block';
+        if (avatarLetter) avatarLetter.style.display = 'none';
+    } else {
+        avatarImg.style.display = 'none';
+        if (avatarLetter) avatarLetter.style.display = '';
+    }
+}
+
+/** رندر معاينة صورة المشرف في الإعدادات */
+function renderAdminPhotoPreview() {
+    const photo = _getAdminPhoto();
+    const img   = document.getElementById('admin-photo-preview-img');
+    const ph    = document.getElementById('admin-photo-preview-placeholder');
+    if (!img || !ph) return;
+    if (photo) {
+        img.src = photo;
+        img.style.display = 'block';
+        ph.style.display  = 'none';
+    } else {
+        img.style.display = 'none';
+        ph.style.display  = 'flex';
+    }
+}
+
+/** رفع صورة المشرف */
+function handleAdminPhotoUpload(input) {
+    const file = input.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+        showNotification('يرجى اختيار ملف صورة صالح', 'error');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const doSave = function(compressed) {
+            if (typeof saveEntityImage === 'function') saveEntityImage('admin', 'photo', compressed);
+            try { localStorage.setItem('edu_admin_photo', compressed); } catch(err) {}
+            renderAdminPhotoPreview();
+            applyAdminPhoto();
+            showNotification('✅ تم حفظ صورة المشرف بنجاح', 'success');
+        };
+        if (typeof _compressImage === 'function') {
+            _compressImage(e.target.result, doSave, 300, 0.85);
+        } else {
+            doSave(e.target.result);
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+/** حذف صورة المشرف */
+function removeAdminPhoto() {
+    if (!confirm('هل تريد حذف صورة المشرف؟')) return;
+    if (typeof deleteEntityImage === 'function') deleteEntityImage('admin', 'photo');
+    try { localStorage.removeItem('edu_admin_photo'); } catch(err) {}
+    renderAdminPhotoPreview();
+    applyAdminPhoto();
+    showNotification('تم حذف صورة المشرف', 'success');
 }
 
 // ============================================================
@@ -10451,6 +10585,162 @@ function saveMessageSettings() {
 //  رفع إعدادات البرنامج فقط (اسم السنتر/المدرس/الهاتف...) إلى
 //  السحابة فور الحفظ، بدون رفع باقي الجداول (خفيف وسريع).
 //  بيستخدم نفس منطق الدمج الآمن (_dsMergeSettingsBlobs) المستخدم
+// ============================================================
+//  نظام السنوات الدراسية الأكاديمية — ديناميكي وقابل للإضافة والحذف
+//  التخزين: db._settings.academicYears  +  db._settings.activeAcademicYear
+//  المصدر الرئيسي: localStorage['edu_master_settings'] (نفس باقي الإعدادات)
+// ============================================================
+
+/** جلب قائمة السنوات الأكاديمية المحفوظة */
+function getAcademicYears() {
+    if (!db._settings.academicYears || !Array.isArray(db._settings.academicYears)) {
+        // لا نضع default hardcoded — نبدأ بقائمة فارغة
+        db._settings.academicYears = [];
+    }
+    return db._settings.academicYears;
+}
+
+/** جلب السنة الأكاديمية النشطة (id) */
+function getActiveAcademicYear() {
+    return db._settings.activeAcademicYear || null;
+}
+
+/** جلب كائن السنة الأكاديمية النشطة */
+function getActiveAcademicYearObj() {
+    const years = getAcademicYears();
+    const activeId = getActiveAcademicYear();
+    return years.find(y => String(y.id) === String(activeId)) || null;
+}
+
+/** حفظ السنوات الأكاديمية في localStorage + إشعار */
+function saveAcademicYears() {
+    localStorage.setItem('edu_master_settings', JSON.stringify(db._settings));
+    localStorage.setItem('edu_academic_years_backup', JSON.stringify({
+        years: db._settings.academicYears,
+        activeId: db._settings.activeAcademicYear
+    }));
+}
+
+/** إضافة سنة دراسية جديدة */
+function addAcademicYear() {
+    const input = document.getElementById('new-academic-year-input');
+    const label = input ? input.value.trim() : '';
+    if (!label) return showNotification('يرجى إدخال اسم السنة الدراسية (مثال: 2025 / 2026)', 'error');
+
+    const years = getAcademicYears();
+    if (years.some(y => y.label === label)) {
+        return showNotification('هذه السنة الدراسية موجودة مسبقاً', 'error');
+    }
+
+    const newYear = { id: Date.now(), label, createdAt: Date.now() };
+    years.push(newYear);
+    db._settings.academicYears = years;
+
+    // لو هي الأولى، اجعلها النشطة تلقائياً
+    if (years.length === 1) {
+        db._settings.activeAcademicYear = String(newYear.id);
+    }
+
+    saveAcademicYears();
+    if (input) input.value = '';
+    renderAcademicYearsSettings();
+    showNotification(`✅ تم إضافة السنة الدراسية: ${label}`, 'success');
+}
+
+/** تفعيل سنة دراسية كسنة حالية نشطة */
+function setActiveAcademicYear(id) {
+    const years = getAcademicYears();
+    const year = years.find(y => String(y.id) === String(id));
+    if (!year) return showNotification('السنة الدراسية غير موجودة', 'error');
+
+    db._settings.activeAcademicYear = String(id);
+    saveAcademicYears();
+    renderAcademicYearsSettings();
+    applyActiveAcademicYearLabel();
+    showNotification(`✅ تم تفعيل السنة الدراسية: ${year.label}`, 'success');
+}
+
+/** حذف سنة دراسية */
+function deleteAcademicYear(id) {
+    const years = getAcademicYears();
+    const year = years.find(y => String(y.id) === String(id));
+    if (!year) return;
+    if (!confirm(`هل أنت متأكد من حذف السنة الدراسية "${year.label}"؟`)) return;
+
+    db._settings.academicYears = years.filter(y => String(y.id) !== String(id));
+
+    // لو كانت هي النشطة، أفرغ النشطة
+    if (String(db._settings.activeAcademicYear) === String(id)) {
+        db._settings.activeAcademicYear = db._settings.academicYears.length > 0
+            ? String(db._settings.academicYears[db._settings.academicYears.length - 1].id)
+            : null;
+    }
+
+    saveAcademicYears();
+    renderAcademicYearsSettings();
+    applyActiveAcademicYearLabel();
+    showNotification(`تم حذف السنة الدراسية: ${year.label}`, 'success');
+}
+
+/** عرض لافتة السنة النشطة في الواجهة (لوكيشنات متعددة) */
+function applyActiveAcademicYearLabel() {
+    const year = getActiveAcademicYearObj();
+    const label = year ? year.label : '';
+
+    // Badge في الهيدر (اختياري — العنصر غير ظاهر حالياً في الهيدر)
+    const headerBadge = document.getElementById('active-year-badge');
+    if (headerBadge) headerBadge.textContent = label;
+
+    // في صفحة الداشبورد لو وجد مكان
+    const dashYear = document.getElementById('dashboard-active-year');
+    if (dashYear) dashYear.textContent = label || '—';
+
+    // في Portal
+    const portalYear = document.getElementById('portal-active-year');
+    if (portalYear) portalYear.textContent = label || 'اختر السنة الدراسية';
+}
+
+/** رندر قسم السنوات الدراسية داخل صفحة الإعدادات */
+function renderAcademicYearsSettings() {
+    const container = document.getElementById('academic-years-container');
+    if (!container) return;
+
+    const years = getAcademicYears();
+    const activeId = String(getActiveAcademicYear() || '');
+
+    if (years.length === 0) {
+        container.innerHTML = `
+            <p style="color:var(--text-muted); text-align:center; padding:1.5rem 0;">
+                <i class="fas fa-calendar-alt" style="font-size:2rem; opacity:0.4; display:block; margin-bottom:0.5rem;"></i>
+                لا توجد سنوات دراسية بعد. أضف سنة جديدة من الأعلى.
+            </p>`;
+        return;
+    }
+
+    container.innerHTML = years.map(y => {
+        const isActive = String(y.id) === activeId;
+        return `
+        <div style="display:flex; align-items:center; gap:1rem; padding:0.8rem 1rem;
+                    background:${isActive ? 'rgba(79,70,229,0.08)' : 'var(--bg-light)'};
+                    border-radius:12px; border:${isActive ? '2px solid var(--primary)' : '1px solid var(--border)'};
+                    margin-bottom:0.6rem;">
+            <div style="flex:1; font-weight:${isActive ? '700' : '400'}; color:${isActive ? 'var(--primary)' : 'var(--text)'};">
+                <i class="fas fa-calendar-alt" style="margin-left:0.5rem; opacity:0.7;"></i>
+                ${y.label}
+                ${isActive ? '<span style="background:var(--primary); color:white; font-size:0.7rem; padding:2px 8px; border-radius:20px; margin-right:0.5rem;">نشطة</span>' : ''}
+            </div>
+            ${!isActive ? `<button class="btn" onclick="setActiveAcademicYear(${y.id})"
+                style="background:var(--primary); color:white; padding:0.4rem 1rem; border-radius:8px; font-size:0.85rem;">
+                <i class="fas fa-check-circle"></i> تفعيل
+            </button>` : ''}
+            <button class="btn" onclick="deleteAcademicYear(${y.id})"
+                style="background:rgba(239,68,68,0.1); color:var(--danger); padding:0.4rem 0.8rem; border-radius:8px; font-size:0.85rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>`;
+    }).join('');
+}
+
 //  في الرفع/التنزيل الكامل، عشان مايلغيش حالة اشتراك محدّثة من
 //  جهاز تاني.
 // ============================================================
@@ -10495,30 +10785,46 @@ async function uploadSettingsOnlyToCloud() {
 
 function saveProgramSettings() {
     const profile = getProgramProfile();
-    profile.centerName = document.getElementById('settings-center-name')?.value.trim() || '';
-    profile.stickerTitle = document.getElementById('settings-sticker-title')?.value.trim() || profile.centerName || '';
-    profile.teacherName = document.getElementById('settings-teacher-name')?.value.trim() || '';
-    profile.phone = document.getElementById('settings-phone')?.value.trim() || '';
+
+    // ── قراءة القيم من الفورم ──────────────────────────────────────────
+    const newCenterName  = document.getElementById('settings-center-name')?.value.trim()   || '';
+    const newStickerTitle= document.getElementById('settings-sticker-title')?.value.trim() || newCenterName;
+    const newTeacherName = document.getElementById('settings-teacher-name')?.value.trim()  || '';
+    const newPhone       = document.getElementById('settings-phone')?.value.trim()          || '';
+
+    // ── تحديث profile في الذاكرة ─────────────────────────────────────
+    profile.centerName   = newCenterName;
+    profile.stickerTitle = newStickerTitle;
+    profile.teacherName  = newTeacherName;
+    profile.phone        = newPhone;
+    db._settings.appProfile = profile;
 
     const monthlyFee = parseFloat(document.getElementById('settings-monthly-fee')?.value || '0');
     const commission = parseFloat(document.getElementById('settings-commission')?.value || '0');
     db.settings.monthlyFee = Number.isFinite(monthlyFee) ? Math.max(0, monthlyFee) : 0;
     db.settings.centerCommissionPercent = Number.isFinite(commission) ? Math.min(100, Math.max(0, commission)) : 0;
 
+    // ── الطباعة ────────────────────────────────────────────────────────
     const printWidth = document.getElementById('settings-print-width')?.value || '80mm';
     localStorage.setItem('center_print_width', printWidth);
+
+    // ── الحفظ الدائم: localStorage + مزامنة السحابة ─────────────────
+    // ملاحظة: الإعدادات تُخزَّن في localStorage['edu_master_settings'] وهي
+    //   المصدر الرئيسي للإعدادات (db._settings). db.save() يكتبها تلقائياً.
     localStorage.setItem('edu_master_settings', JSON.stringify(db._settings));
+    // حفظ نسخة احتياطية مستقلة تحت مفتاح خاص لضمان البقاء بعد Refresh
+    localStorage.setItem('edu_program_profile', JSON.stringify(profile));
 
     applyProgramProfile();
     updateExperienceSummary();
-    showNotification('تم حفظ إعدادات البرنامج بنجاح', 'success');
+    showNotification('✅ تم حفظ إعدادات البرنامج بنجاح', 'success');
 
-    // ── مزامنة الإعدادات مع السحابة فوراً (بحيث تظهر على باقي الأجهزة) ──
+    // ── مزامنة مع السحابة ─────────────────────────────────────────────
     uploadSettingsOnlyToCloud().then(ok => {
         if (ok) {
-            showNotification('✅ تمت مزامنة الإعدادات مع السحابة — هتظهر على باقي الأجهزة', 'success');
+            showNotification('☁️ تمت مزامنة الإعدادات مع السحابة', 'success');
         } else {
-            showNotification('⚠️ تم الحفظ على هذا الجهاز فقط، تعذّرت المزامنة السحابية (تأكد من الإنترنت)', 'error');
+            showNotification('⚠️ تم الحفظ محلياً، تعذّرت المزامنة السحابية (تأكد من الإنترنت)', 'error');
         }
     });
 }
@@ -12247,6 +12553,9 @@ window.onload = async () => {
     if (typeof initStudentGroups === 'function') initStudentGroups();
     initExperienceEnhancements();
     applySplashLogo(); // تطبيق لوجو البرنامج على شاشة الدخول
+    applyProgramProfile(); // تطبيق اسم البرنامج المحفوظ
+    if (typeof applyActiveAcademicYearLabel === 'function') applyActiveAcademicYearLabel();
+    if (typeof applyAdminPhoto === 'function') applyAdminPhoto(); // صورة المشرف في الهيدر
 
     // Recover from file if needed (Legacy / Manual Check)
     if (localStorage.length <= 1 && window.edu_initial_data && window.edu_initial_data.db_state) {
@@ -12360,6 +12669,9 @@ const exposures = {
     applyAppTheme, toggleDayNightMode, initExperienceEnhancements, updateExperienceSummary,
     initProgramSettings, renderProgramSettings, saveProgramSettings,
     handleLogoUpload, removeProgramLogo, applySplashLogo, renderLogoPreview,
+    handleAdminPhotoUpload, removeAdminPhoto, applyAdminPhoto, renderAdminPhotoPreview,
+    addAcademicYear, setActiveAcademicYear, deleteAcademicYear,
+    renderAcademicYearsSettings, getActiveAcademicYear, getActiveAcademicYearObj,
     prepareHandoverDownload: async () => {
         showNotification('جاري تجهيز نسخة كاملة للنقل...', 'info');
         const snapshot = {};
@@ -13174,6 +13486,8 @@ function checkAppPassword(val) {
                 setTimeout(() => { splash.style.display = 'none'; }, 1000);
             }
             RBAC.applyToUI();
+            if (typeof applyAdminPhoto === 'function') applyAdminPhoto();
+            if (typeof applySplashLogo  === 'function') applySplashLogo();
 
             if (typeof startBookingAutoSync === 'function') {
                 setTimeout(startBookingAutoSync, 3000);
