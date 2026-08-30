@@ -300,7 +300,7 @@ const StorageEngine = {
     db: null,
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open("EduMasterLargeDB", 6);
+            const request = indexedDB.open("EduMasterLargeDB", 7);
             request.onerror = (e) => reject("IndexedDB error: " + e.target.errorCode);
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
@@ -315,6 +315,10 @@ const StorageEngine = {
                 tables.forEach(t => {
                     if (!db.objectStoreNames.contains(t)) db.createObjectStore(t, { keyPath: "id" });
                 });
+                // ─── متجر الإعدادات والمراحل الدائم (لا يتأثر بمسح localStorage) ───
+                if (!db.objectStoreNames.contains("appConfig")) {
+                    db.createObjectStore("appConfig", { keyPath: "key" });
+                }
             };
             request.onsuccess = (e) => {
                 this.db = e.target.result;
@@ -482,6 +486,30 @@ const StorageEngine = {
                 resolve(items.length);
             };
             request.onerror = () => resolve(0);
+        });
+    },
+
+    // ─── حفظ / قراءة إعدادات دائمة في IndexedDB (لا تُمسح بمسح localStorage) ───
+    async setConfig(key, value) {
+        return new Promise((resolve) => {
+            if (!this.db || !this.db.objectStoreNames.contains('appConfig')) return resolve();
+            try {
+                const tx = this.db.transaction(['appConfig'], 'readwrite');
+                tx.objectStore('appConfig').put({ key, value });
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve();
+            } catch (e) { resolve(); }
+        });
+    },
+    async getConfig(key) {
+        return new Promise((resolve) => {
+            if (!this.db || !this.db.objectStoreNames.contains('appConfig')) return resolve(null);
+            try {
+                const tx = this.db.transaction(['appConfig'], 'readonly');
+                const req = tx.objectStore('appConfig').get(key);
+                req.onsuccess = () => resolve(req.result ? req.result.value : null);
+                req.onerror = () => resolve(null);
+            } catch (e) { resolve(null); }
         });
     }
 };
@@ -668,7 +696,29 @@ const db = {
         try { localStorage.setItem('_fallback_secretaries', JSON.stringify(this.secretaries)); } catch (e) { }
 
         // Refresh global gradesList variable from localStorage (مع ضمان الـ 12 الثابتة)
-        const storedGrades = localStorage.getItem('edu_grades_list');
+        // ─── استعادة من IndexedDB لو localStorage فارغ أو اتمسح ───
+        let storedGrades = localStorage.getItem('edu_grades_list');
+        if (!storedGrades) {
+            try {
+                const idbGrades = await StorageEngine.getConfig('edu_grades_list');
+                if (idbGrades) {
+                    storedGrades = idbGrades;
+                    localStorage.setItem('edu_grades_list', storedGrades);
+                    console.log('[Boot] Restored grades from IndexedDB appConfig');
+                }
+            } catch (e) { console.warn('[Boot] Could not restore grades from IDB', e); }
+        }
+        // ─── استعادة الإعدادات من IndexedDB لو localStorage فارغ ───
+        if (!localStorage.getItem('edu_master_settings') || Object.keys(this._settings).length === 0) {
+            try {
+                const idbSettings = await StorageEngine.getConfig('edu_master_settings');
+                if (idbSettings) {
+                    localStorage.setItem('edu_master_settings', idbSettings);
+                    this._settings = JSON.parse(idbSettings);
+                    console.log('[Boot] Restored settings from IndexedDB appConfig');
+                }
+            } catch (e) { console.warn('[Boot] Could not restore settings from IDB', e); }
+        }
         try {
             const parsed = storedGrades ? JSON.parse(storedGrades) : null;
             gradesList = buildGradesList(parsed);
@@ -695,7 +745,9 @@ const db = {
         }
         try { localStorage.setItem('_fallback_secretaries', JSON.stringify(this.secretaries)); } catch (e) { }
 
-        localStorage.setItem('edu_master_settings', JSON.stringify(this._settings));
+        const settingsStr = JSON.stringify(this._settings);
+        localStorage.setItem('edu_master_settings', settingsStr);
+        StorageEngine.setConfig('edu_master_settings', settingsStr).catch(() => {});
         if (currentGrade) localStorage.setItem('edu_active_grade', currentGrade);
         if (currentGroupId) localStorage.setItem('edu_active_group', currentGroupId);
         if (this.dailyTreasuryLastArchiveDate) localStorage.setItem('dailyTreasuryLastArchiveDate', this.dailyTreasuryLastArchiveDate);
@@ -1318,7 +1370,47 @@ function saveGradesList() {
     // تأكد إن الـ 12 المرحلة الثابتة دايماً موجودة قبل الحفظ
     gradesList = buildGradesList(gradesList);
     window.gradesList = gradesList;
-    localStorage.setItem('edu_grades_list', JSON.stringify(gradesList));
+    const data = JSON.stringify(gradesList);
+    localStorage.setItem('edu_grades_list', data);
+    // حفظ دائم في IndexedDB حتى لو اتمسح localStorage
+    StorageEngine.setConfig('edu_grades_list', data).catch(() => {});
+}
+
+// ─── مساعدات البورتال لتجنب مشكلة الـ quotes في HTML ───
+function _portalEditGrade(id) {
+    const grade = gradesList.find(g => String(g.id) === String(id));
+    if (!grade) return;
+    openEditGradeModal(id, grade.name, null);
+}
+async function _portalDeleteGrade(id) {
+    await deleteGrade(id);
+}
+
+// ─── تعديل اسم سنة دراسية ───
+function openEditGradeModal(id, currentName, event) {
+    if (event) event.stopPropagation();
+    const modal = document.getElementById('edit-grade-modal');
+    if (!modal) return;
+    document.getElementById('edit-grade-id').value = id;
+    document.getElementById('edit-grade-name').value = currentName;
+    modal.style.display = 'flex';
+}
+function saveEditedGrade() {
+    const id = document.getElementById('edit-grade-id').value;
+    const name = document.getElementById('edit-grade-name').value.trim();
+    if (!name) return showNotification('يرجى إدخال اسم السنة', 'error');
+    const grade = gradesList.find(g => String(g.id) === String(id));
+    if (!grade) return;
+    grade.name = name;
+    saveGradesList();
+    renderGradesList();
+    if (document.getElementById('portal-overlay').style.display !== 'none') {
+        renderPortalGrades();
+    }
+    syncUIWithContext();
+    initGradeSelects && initGradeSelects();
+    document.getElementById('edit-grade-modal').style.display = 'none';
+    showNotification(`تم تعديل الاسم إلى "${name}" بنجاح`);
 }
 
 // --- Grade Management ---
@@ -1498,6 +1590,9 @@ function renderGradesList() {
             <h2>${g.name}</h2>
             <p>إدارة بيانات مستقلة لـ ${g.name}</p>
             <div class="card-stats-modern">اضغط للدخول</div>
+            <button class="btn" style="position: absolute; top: 15px; right: 15px; color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.15); padding: 5px 8px; border-radius:6px;" onclick="event.stopPropagation(); _portalEditGrade('${g.id}')" title="تعديل الاسم">
+                <i class="fas fa-pen"></i>
+            </button>
             <button class="btn" style="position: absolute; top: 15px; left: 15px; color: rgba(255,255,255,0.2); background: transparent; padding: 5px;" onclick="event.stopPropagation(); deleteGrade(${g.id})">
                 <i class="fas fa-trash"></i>
             </button>
@@ -1535,10 +1630,16 @@ async function deleteGrade(id) {
         return showNotification('لا يمكن حذف المراحل الدراسية الأساسية', 'error');
     }
     if (!confirm('هل أنت متأكد من حذف هذه السنة الدراسية؟ سيتم مسح كافة بياناتها نهائياً!')) return;
-    gradesList = gradesList.filter(g => g.id != id);
+    gradesList = gradesList.filter(g => String(g.id) !== String(id));
     window.gradesList = gradesList;
-    saveGradesList();
+    // حفظ دائم في localStorage وIndexedDB معاً
+    const data = JSON.stringify(gradesList);
+    localStorage.setItem('edu_grades_list', data);
+    StorageEngine.setConfig('edu_grades_list', data).catch(() => {});
     renderGradesList();
+    if (document.getElementById('portal-overlay') && document.getElementById('portal-overlay').style.display !== 'none') {
+        renderPortalGrades();
+    }
     // Clean localStorage
     const prefix = `g${id}_`;
     for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -1562,9 +1663,7 @@ async function deleteGrade(id) {
         showNotification(`تم حذف السنة الدراسية وكافة بياناتها بنجاح`, 'success');
     } catch (e) {
         console.error('Error cleaning grade data', e);
-    }
-    if (document.getElementById('portal-overlay').style.display !== 'none') {
-        renderPortalGrades();
+        showNotification(`تم حذف السنة الدراسية بنجاح`, 'success');
     }
 }
 
@@ -3347,7 +3446,15 @@ function renderPortalGrades() {
 
     // Show years first
     let html = gradesList.map((g, idx) => `
-        <div class="grade-card-modern shadow-hover fade-in" onclick="showPortalStep('group', '${g.id}')" style="--accent-color: hsl(${idx * 137.5}, 70%, 50%); background: #fff; color: var(--text-main); border: 1px solid #eee; height: 260px; width: 220px; cursor: pointer;">
+        <div class="grade-card-modern shadow-hover fade-in" onclick="showPortalStep('group', '${g.id}')" style="--accent-color: hsl(${idx * 137.5}, 70%, 50%); background: #fff; color: var(--text-main); border: 1px solid #eee; height: 260px; width: 220px; cursor: pointer; position: relative;">
+            <button onclick="event.stopPropagation(); _portalEditGrade('${g.id}')" title="تعديل الاسم"
+                style="position:absolute;top:10px;left:10px;background:rgba(99,102,241,0.12);border:none;border-radius:8px;padding:5px 8px;cursor:pointer;color:#6366f1;font-size:0.8rem;z-index:10;">
+                <i class="fas fa-pen"></i>
+            </button>
+            <button onclick="event.stopPropagation(); _portalDeleteGrade('${g.id}')" title="حذف السنة"
+                style="position:absolute;top:10px;right:10px;background:rgba(239,68,68,0.10);border:none;border-radius:8px;padding:5px 8px;cursor:pointer;color:#ef4444;font-size:0.8rem;z-index:10;">
+                <i class="fas fa-trash"></i>
+            </button>
             <div class="card-icon-modern"><i class="fas ${g.icon || 'fa-graduation-cap'}"></i></div>
             <h2 style="font-size: 1.5rem;">${g.name}</h2>
             <p style="font-size: 0.9rem;">إدارة بيانات ${g.name}</p>
@@ -12617,6 +12724,7 @@ window.onload = async () => {
 const exposures = {
     // Grade & Group Management
     selectGrade, showGradeSelection, addNewGrade, deleteGrade,
+    openEditGradeModal, saveEditedGrade, _portalEditGrade, _portalDeleteGrade,
     handleAddGroup, deleteGroup, showSection, toggleModal, viewGroupDetails, renderGroupStudents,
     openEditGroupModalById, inlineEditStudent, removeStudentFromGroupModal, openAddStudentForGroupModal,
     openAddStudentForGroup, openAddStudentModal, openGroupScanner, removeStudentFromGroup, initStudentGroups, renderGroups,

@@ -4347,6 +4347,26 @@
         </div>
 
         <!-- Add Grade Modal -->
+        <!-- Edit Grade Name Modal -->
+        <div id="edit-grade-modal" class="modal-overlay" style="display:none;align-items:center;justify-content:center;">
+            <div class="modal-content" style="max-width:400px;border-radius:18px;padding:2rem;">
+                <h3 style="margin-bottom:1.2rem;text-align:center;"><i class="fas fa-pen" style="color:var(--primary);margin-left:8px;"></i>تعديل اسم السنة الدراسية</h3>
+                <input type="hidden" id="edit-grade-id">
+                <div class="form-group">
+                    <label>الاسم الجديد</label>
+                    <input type="text" id="edit-grade-name" class="form-input" placeholder="أدخل الاسم الجديد..."
+                        onkeydown="if(event.key==='Enter') saveEditedGrade()">
+                </div>
+                <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+                    <button class="btn btn-primary" style="flex:2;" onclick="saveEditedGrade()">
+                        <i class="fas fa-save"></i> حفظ التعديل
+                    </button>
+                    <button class="btn" style="flex:1;background:var(--bg-light);"
+                        onclick="document.getElementById('edit-grade-modal').style.display='none'">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
         <div id="add-grade-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content" style="max-width: 420px;">
                 <h3 style="margin-bottom: 1.5rem; text-align: center;">إضافة سنة دراسية جديدة</h3>
