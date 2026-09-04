@@ -3,12 +3,103 @@
  *  grade-stats.js
  *  إحصائيات المراحل الدراسية — مستر غازي نور الدين
  *
- *  يعرض في الداشبورد قسماً للاختيار من القائمة وعرض:
- *  - إجمالي الطلاب  / الحاضرون / الغائبون اليوم
- *  - نسب الحضور والغياب
+ *  يعرض في الداشبورد قسماً منظماً يحتوي على:
+ *  - ملخص سريع لكل الصفوف من الصفحة الرئيسية
+ *  - تفاصيل أي صف: حضور اليوم، الغياب، نسبة الحضور، نسبة المستحقات
  *  - عدد المجموعات وتوزيع الطلاب عليها
  * ═══════════════════════════════════════════════════════════════
  */
+
+function _gradeStatsToday() {
+    return new Date().toLocaleDateString('en-CA');
+}
+
+function _gradeStatsSameDate(value, targetDate) {
+    if (!value) return false;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return false;
+    return parsed.toLocaleDateString('en-CA') === targetDate;
+}
+
+function _gradeStatsGroupMatchesGrade(group, gradeId) {
+    const groupGrade = String(group?.grade ?? '');
+    const wantedGrade = String(gradeId ?? '');
+    const groupSys = typeof gradeIdToSystemCode === 'function' ? gradeIdToSystemCode(groupGrade) : groupGrade;
+    const wantedSys = typeof gradeIdToSystemCode === 'function' ? gradeIdToSystemCode(wantedGrade) : wantedGrade;
+    return groupSys === wantedSys || groupGrade === wantedGrade;
+}
+
+function calculateGradeStats(gradeId) {
+    const gradeName = (window.gradesList || []).find(g => String(g.id) === String(gradeId))?.name || 'المرحلة المختارة';
+    const allStudents = (window.db?.students || []).filter(s => String(s.grade) === String(gradeId));
+    const totalStudents = allStudents.length;
+    const today = _gradeStatsToday();
+    const studentIds = new Set(allStudents.map(s => String(s.id)));
+
+    const presentStudentIds = new Set();
+    (window.db?.attendance || []).forEach(a => {
+        if (!_gradeStatsSameDate(a.date, today)) return;
+        if (a.status !== 'present') return;
+        if (studentIds.has(String(a.studentId))) presentStudentIds.add(String(a.studentId));
+    });
+
+    const presentToday = presentStudentIds.size;
+    const absentToday = Math.max(0, totalStudents - presentToday);
+    const attendanceRate = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
+    const absentRate = totalStudents > 0 ? 100 - attendanceRate : 0;
+
+    const activeCycle = window.db?.settings?.activeCycle;
+    const monthlyFee = Number(window.db?.settings?.monthlyFee || 0);
+    const paidStudentIds = new Set();
+    (window.db?.payments || []).forEach(p => {
+        if (p.category !== 'اشتراك شهري') return;
+        if (activeCycle && String(p.cycleId || '') !== String(activeCycle)) return;
+        if (studentIds.has(String(p.studentId))) paidStudentIds.add(String(p.studentId));
+    });
+    const paidCount = paidStudentIds.size;
+    const unpaidCount = Math.max(0, totalStudents - paidCount);
+    const duesRate = totalStudents > 0 ? Math.round((paidCount / totalStudents) * 100) : 0;
+    const dueAmount = window.db?.settings?.isMonthlyActive ? unpaidCount * monthlyFee : 0;
+
+    const gradeGroups = (window.db?.groups || []).filter(g => _gradeStatsGroupMatchesGrade(g, gradeId));
+
+    return {
+        gradeId, gradeName, allStudents, totalStudents, presentToday, absentToday,
+        attendanceRate, absentRate, paidCount, unpaidCount, duesRate, dueAmount,
+        gradeGroups, totalGroups: gradeGroups.length
+    };
+}
+
+function renderAllGradesOverview() {
+    const grades = window.gradesList || [];
+    if (!grades.length) {
+        return `<div style="text-align:center;padding:1.5rem;color:var(--text-muted,#64748b);">لا توجد صفوف دراسية مضافة بعد</div>`;
+    }
+
+    return `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-bottom:1rem;">
+            ${grades.map(g => {
+                const st = calculateGradeStats(g.id);
+                return `
+                    <button type="button" onclick="document.getElementById('grade-stats-select').value='${g.id}'; loadGradeStats('${g.id}')"
+                        style="text-align:right;background:var(--bg-white,#fff);border:1px solid var(--border,#e5e7eb);
+                               border-radius:14px;padding:1rem;cursor:pointer;box-shadow:0 2px 10px rgba(15,23,42,0.06);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0.7rem;">
+                            <strong style="font-size:0.95rem;color:var(--text-main,#1e293b);">${st.gradeName}</strong>
+                            <span style="font-size:0.75rem;color:var(--primary,#4f46e5);font-weight:800;">${st.totalStudents} طالب</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;font-size:0.78rem;">
+                            <span style="color:#10b981;font-weight:800;">حضور ${st.presentToday}</span>
+                            <span style="color:#ef4444;font-weight:800;">غياب ${st.absentToday}</span>
+                            <span style="color:#0ea5e9;font-weight:800;">مستحقات ${st.duesRate}%</span>
+                        </div>
+                        <div style="height:7px;background:var(--bg-light,#f1f5f9);border-radius:99px;overflow:hidden;margin-top:0.75rem;">
+                            <div style="height:100%;width:${st.attendanceRate}%;background:#10b981;border-radius:99px;"></div>
+                        </div>
+                    </button>`;
+            }).join('')}
+        </div>`;
+}
 
 // ─── عرض القسم الرئيسي في الداشبورد ──────────────────────────
 function renderGradeStatsSection() {
@@ -74,10 +165,7 @@ function renderGradeStatsSection() {
 
         <!-- Results Container -->
         <div id="grade-stats-results" style="animation: fadeIn 0.3s ease;">
-            <div style="text-align:center;padding:2rem;color:var(--text-muted,#64748b);">
-                <i class="fas fa-chart-pie" style="font-size:2.5rem;opacity:0.3;display:block;margin-bottom:0.8rem;"></i>
-                <p style="font-size:0.9rem;">اختر مرحلة دراسية من الأعلى لعرض إحصائياتها</p>
-            </div>
+            ${renderAllGradesOverview()}
         </div>
     `;
 
@@ -96,10 +184,7 @@ function loadGradeStats(gradeId) {
     if (!resultsContainer) return;
     if (!gradeId) {
         resultsContainer.innerHTML = `
-            <div style="text-align:center;padding:2rem;color:var(--text-muted,#64748b);">
-                <i class="fas fa-chart-pie" style="font-size:2.5rem;opacity:0.3;display:block;margin-bottom:0.8rem;"></i>
-                <p style="font-size:0.9rem;">اختر مرحلة دراسية من الأعلى لعرض إحصائياتها</p>
-            </div>`;
+            ${renderAllGradesOverview()}`;
         return;
     }
 
@@ -109,31 +194,11 @@ function loadGradeStats(gradeId) {
     // التحقق من البيانات
     if (!window.db) { resultsContainer.innerHTML = '<p style="padding:1rem;text-align:center;">جاري تحميل البيانات...</p>'; return; }
 
-    const gradeName = (window.gradesList || []).find(g => String(g.id) === String(gradeId))?.name || 'المرحلة المختارة';
-
-    // ─ بيانات الطلاب ─
-    const allStudents = (db.students || []).filter(s => String(s.grade) === String(gradeId));
-    const totalStudents = allStudents.length;
-
-    // ─ بيانات اليوم ─
-    const today = new Date().toLocaleDateString('en-CA');
-    const studentIds = allStudents.map(s => s.id);
-    const todayAttendance = (db.attendance || []).filter(a => {
-        const aDate = new Date(a.date).toLocaleDateString('en-CA');
-        return aDate === today && studentIds.includes(a.studentId);
-    });
-    const presentToday  = todayAttendance.filter(a => a.status === 'present').length;
-    const absentToday   = totalStudents - presentToday;
-    const attendanceRate = totalStudents > 0 ? Math.round((presentToday / totalStudents) * 100) : 0;
-    const absentRate     = 100 - attendanceRate;
-
-    // ─ بيانات المجموعات ─
-    const gradeGroups = (db.groups || []).filter(g => {
-        const gSys = typeof gradeIdToSystemCode === 'function' ? gradeIdToSystemCode(String(g.grade)) : String(g.grade);
-        const wantedSys = typeof gradeIdToSystemCode === 'function' ? gradeIdToSystemCode(String(gradeId)) : String(gradeId);
-        return gSys === wantedSys || String(g.grade) === String(gradeId);
-    });
-    const totalGroups = gradeGroups.length;
+    const {
+        gradeName, allStudents, totalStudents, presentToday, absentToday,
+        attendanceRate, absentRate, paidCount, unpaidCount, duesRate, dueAmount,
+        gradeGroups, totalGroups
+    } = calculateGradeStats(gradeId);
 
     // ─ HTML الإحصائيات ─
     const statsCardsHTML = `
@@ -223,6 +288,21 @@ function loadGradeStats(gradeId) {
                 <div style="font-size:2rem;font-weight:900;color:#8b5cf6;line-height:1;">${totalGroups}</div>
                 <div style="font-size:0.7rem;color:var(--text-muted);">مجموعة نشطة</div>
             </div>
+
+            <!-- نسبة المستحقات -->
+            <div style="background:var(--bg-white,#fff);border-radius:16px;padding:1.1rem;
+                         box-shadow:0 2px 12px rgba(0,0,0,0.07);border-right:4px solid #0ea5e9;
+                         display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:32px;height:32px;background:rgba(14,165,233,0.1);border-radius:10px;
+                                 display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-wallet" style="color:#0ea5e9;font-size:0.85rem;"></i>
+                    </div>
+                    <span style="font-size:0.72rem;color:var(--text-muted);font-weight:600;">نسبة المستحقات</span>
+                </div>
+                <div style="font-size:2rem;font-weight:900;color:#0ea5e9;line-height:1;">${duesRate}%</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">${paidCount} سددوا / ${unpaidCount} لم يسددوا</div>
+            </div>
         </div>`;
 
     // ─ شريط التقدم ─
@@ -246,6 +326,20 @@ function loadGradeStats(gradeId) {
             <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.72rem;color:var(--text-muted);">
                 <span><span style="color:#10b981;font-weight:700;">●</span> حاضرون: ${presentToday}</span>
                 <span><span style="color:#ef4444;font-weight:700;">●</span> غائبون: ${absentToday}</span>
+            </div>
+        </div>` : '';
+
+    const duesHTML = totalStudents > 0 ? `
+        <div style="background:var(--bg-white,#fff);border-radius:16px;padding:1.2rem;
+                     box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;gap:10px;">
+                <span style="font-weight:700;font-size:0.9rem;"><i class="fas fa-wallet" style="color:#0ea5e9;"></i> مستحقات الدورة الحالية</span>
+                <span style="font-size:0.85rem;color:var(--text-muted);font-weight:700;">المتبقي: ${dueAmount} ج.م</span>
+            </div>
+            <div style="background:var(--bg-light,#f1f5f9);border-radius:99px;height:14px;overflow:hidden;position:relative;">
+                <div style="height:100%;border-radius:99px;background:#0ea5e9;width:${duesRate}%;transition:width 0.8s ease;"></div>
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                             font-size:0.68rem;font-weight:800;color:#1e293b;">${duesRate}% سداد</div>
             </div>
         </div>` : '';
 
@@ -304,6 +398,7 @@ function loadGradeStats(gradeId) {
         </div>
         ${statsCardsHTML}
         ${progressHTML}
+        ${duesHTML}
         ${groupsHTML}
     `;
 }

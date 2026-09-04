@@ -29,7 +29,11 @@ window._imageStore = {};   // { "student_123": "data:image/..." , "group_456": "
 
 function _persistImageStore() {
     try {
-        localStorage.setItem('edu_image_store', JSON.stringify(window._imageStore || {}));
+        const payload = JSON.stringify(window._imageStore || {});
+        localStorage.setItem('edu_image_store', payload);
+        if (window.StorageEngine && typeof window.StorageEngine.setConfig === 'function') {
+            window.StorageEngine.setConfig('edu_image_store', payload).catch(() => {});
+        }
     } catch(e) {
         // في حالة امتلاء localStorage - حذف أقدم الصور
         console.warn('[ImageStore] localStorage quota exceeded, pruning...');

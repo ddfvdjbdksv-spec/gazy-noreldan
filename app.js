@@ -644,7 +644,13 @@ const db = {
 
         // ── استعادة appProfile المحفوظ (لو تلف أو اختفى من _settings) ──
         if (!this._settings.appProfile || !this._settings.appProfile.centerName) {
-            const savedProfile = localStorage.getItem('edu_program_profile');
+            let savedProfile = localStorage.getItem('edu_program_profile');
+            if (!savedProfile) {
+                try {
+                    savedProfile = await StorageEngine.getConfig('edu_program_profile');
+                    if (savedProfile) localStorage.setItem('edu_program_profile', savedProfile);
+                } catch(e) {}
+            }
             if (savedProfile) {
                 try {
                     const parsed = JSON.parse(savedProfile);
@@ -719,6 +725,28 @@ const db = {
                 }
             } catch (e) { console.warn('[Boot] Could not restore settings from IDB', e); }
         }
+        // ─── استعادة الصور المهمة من IndexedDB لو localStorage اتنضف ───
+        if (!localStorage.getItem('edu_image_store')) {
+            try {
+                const idbImages = await StorageEngine.getConfig('edu_image_store');
+                if (idbImages) {
+                    localStorage.setItem('edu_image_store', idbImages);
+                    window._imageStore = JSON.parse(idbImages) || {};
+                }
+            } catch (e) { console.warn('[Boot] Could not restore image store from IDB', e); }
+        }
+        if (!localStorage.getItem('edu_program_logo')) {
+            try {
+                const idbLogo = await StorageEngine.getConfig('edu_program_logo');
+                if (idbLogo) localStorage.setItem('edu_program_logo', idbLogo);
+            } catch (e) {}
+        }
+        if (!localStorage.getItem('edu_admin_photo')) {
+            try {
+                const idbAdminPhoto = await StorageEngine.getConfig('edu_admin_photo');
+                if (idbAdminPhoto) localStorage.setItem('edu_admin_photo', idbAdminPhoto);
+            } catch (e) {}
+        }
         try {
             const parsed = storedGrades ? JSON.parse(storedGrades) : null;
             gradesList = buildGradesList(parsed);
@@ -755,6 +783,8 @@ const db = {
         if (typeof updateDataInFile === 'function') updateDataInFile();
     }
 };
+
+window.StorageEngine = StorageEngine;
 
 let appBootPromise = null;
 
@@ -10524,6 +10554,7 @@ function handleLogoUpload(input) {
             }
             // حفظ احتياطي دائم في localStorage
             try { localStorage.setItem('edu_program_logo', compressed); } catch(err) {}
+            try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_program_logo', compressed).catch(() => {}); } catch(err) {}
             renderLogoPreview();
             applySplashLogo();
             showNotification('✅ تم حفظ اللوجو بنجاح وسيظهر في شاشة الدخول والشريط الجانبي', 'success');
@@ -10542,6 +10573,7 @@ function removeProgramLogo() {
     if (!confirm('هل تريد حذف اللوجو الحالي؟')) return;
     if (typeof deleteEntityImage === 'function') deleteEntityImage('program', 'logo');
     try { localStorage.removeItem('edu_program_logo'); } catch(err) {}
+    try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_program_logo', '').catch(() => {}); } catch(err) {}
     renderLogoPreview();
     applySplashLogo();
     showNotification('تم حذف اللوجو', 'success');
@@ -10643,6 +10675,7 @@ function handleAdminPhotoUpload(input) {
         const doSave = function(compressed) {
             if (typeof saveEntityImage === 'function') saveEntityImage('admin', 'photo', compressed);
             try { localStorage.setItem('edu_admin_photo', compressed); } catch(err) {}
+            try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_admin_photo', compressed).catch(() => {}); } catch(err) {}
             renderAdminPhotoPreview();
             applyAdminPhoto();
             showNotification('✅ تم حفظ صورة المشرف بنجاح', 'success');
@@ -10661,6 +10694,7 @@ function removeAdminPhoto() {
     if (!confirm('هل تريد حذف صورة المشرف؟')) return;
     if (typeof deleteEntityImage === 'function') deleteEntityImage('admin', 'photo');
     try { localStorage.removeItem('edu_admin_photo'); } catch(err) {}
+    try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_admin_photo', '').catch(() => {}); } catch(err) {}
     renderAdminPhotoPreview();
     applyAdminPhoto();
     showNotification('تم حذف صورة المشرف', 'success');
@@ -10919,8 +10953,10 @@ function saveProgramSettings() {
     // ملاحظة: الإعدادات تُخزَّن في localStorage['edu_master_settings'] وهي
     //   المصدر الرئيسي للإعدادات (db._settings). db.save() يكتبها تلقائياً.
     localStorage.setItem('edu_master_settings', JSON.stringify(db._settings));
+    try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_master_settings', JSON.stringify(db._settings)).catch(() => {}); } catch(err) {}
     // حفظ نسخة احتياطية مستقلة تحت مفتاح خاص لضمان البقاء بعد Refresh
     localStorage.setItem('edu_program_profile', JSON.stringify(profile));
+    try { if (StorageEngine && StorageEngine.setConfig) StorageEngine.setConfig('edu_program_profile', JSON.stringify(profile)).catch(() => {}); } catch(err) {}
 
     applyProgramProfile();
     updateExperienceSummary();
@@ -11525,7 +11561,6 @@ async function uploadStudentsToCloud() {
             showNotification('❌ السحابة غير متاحة — تأكد من الإنترنت وحاول مجدداً.', 'error');
             return;
         }
-
         if (!StorageEngine.db) await StorageEngine.init();
         const allStudents = await StorageEngine.getAll('students');
 
@@ -11619,7 +11654,6 @@ async function downloadStudentsFromCloud() {
             showNotification('❌ السحابة غير متاحة — تأكد من الإنترنت وحاول مجدداً.', 'error');
             return;
         }
-
         if (!StorageEngine.db) await StorageEngine.init();
 
         // ════════════════════════════════════════════════════
@@ -11864,6 +11898,14 @@ function _dsMergeSettingsBlobs(localBlob, cloudBlob) {
     return merged;
 }
 
+async function _dsCommitBatchIfNeeded(firestore, state, force = false) {
+    if (!state || (!force && state.count < 400)) return;
+    if (state.count <= 0) return;
+    await state.batch.commit();
+    state.batch = firestore.batch();
+    state.count = 0;
+}
+
 // ============================================================
 //  3. رفع كل البيانات إلى السحابة
 //
@@ -11883,13 +11925,17 @@ async function uploadPaymentsToCloud() {
             showNotification('❌ السحابة غير متاحة — تأكد من الإنترنت وحاول مجدداً.', 'error');
             return;
         }
+        await ensureFirebaseInitialized();
 
         if (!StorageEngine.db) await StorageEngine.init();
 
         const firestore = window.deviceSyncDb;
+        const mainFirestore = window.db || null;
+        const studentReportTables = new Set(['students','groups','attendance','absenceSessions','exams','scores','payments','cycles']);
         const deviceId = _dsGetDeviceId();
         let batch = firestore.batch();
         let batchCount = 0;
+        const rootState = mainFirestore ? { batch: mainFirestore.batch(), count: 0, total: 0 } : null;
         let totalRecords = 0;
 
         // ── 1. رفع Tombstones (حذف السجلات المحذوفة من Firebase) ──
@@ -11952,6 +11998,13 @@ async function uploadPaymentsToCloud() {
                 }, { merge: true });
                 batchCount++;
                 totalRecords++;
+                if (rootState && studentReportTables.has(tableName) && hasStableId) {
+                    const rootDocRef = mainFirestore.collection(tableName).doc(String(record.id));
+                    rootState.batch.set(rootDocRef, { ...record, id: String(record.id) }, { merge: true });
+                    rootState.count++;
+                    rootState.total++;
+                    await _dsCommitBatchIfNeeded(mainFirestore, rootState);
+                }
                 if (batchCount >= 400) {
                     await batch.commit();
                     batch = firestore.batch();
@@ -11989,54 +12042,16 @@ async function uploadPaymentsToCloud() {
         batchCount++;
 
         if (batchCount > 0) await batch.commit();
+        if (rootState) await _dsCommitBatchIfNeeded(mainFirestore, rootState, true);
 
         // ── 4. مسح tombstones بعد رفعها بنجاح ──
         if (uploadedTombstoneKeys.size > 0) {
             _clearTombstones(uploadedTombstoneKeys);
         }
 
-        // ── رفع كل البيانات التي تقرأها صفحة الطالب (student-report.html) ──
-        // الصفحة تقرأ من root collections مباشرة في Firebase الرئيسي (window.db)
-        // لذلك نرفع: students, groups, attendance, absenceSessions, exams, scores, payments, cycles
-        let studentReportUploadOk = false;
-        try {
-            const mainFirebaseReady = await ensureFirebaseInitialized();
-            if (!mainFirebaseReady || !window.db) {
-                console.warn('[DeviceSync] Firebase الرئيسي غير جاهز — بيانات رابط الطالب لم تُرفع');
-                showNotification('⚠️ تم رفع البيانات الرئيسية، لكن روابط الطلاب قد لا تعمل (Firebase غير متاح). حاول مجدداً.', 'warning');
-            } else {
-                const studentReportTables = ['students','groups','attendance','absenceSessions','exams','scores','payments','cycles'];
-                let srTotal = 0;
-                for (const tName of studentReportTables) {
-                    const records = await StorageEngine.getAll(tName);
-                    if (!records || records.length === 0) continue;
-                    let rBatch = window.db.batch();
-                    let rCount = 0;
-                    for (const record of records) {
-                        if (record.id === undefined || record.id === null || record.id === '') continue;
-                        const docRef = window.db.collection(tName).doc(String(record.id));
-                        rBatch.set(docRef, { ...record, id: String(record.id) }, { merge: true });
-                        rCount++;
-                        srTotal++;
-                        if (rCount >= 400) {
-                            await rBatch.commit();
-                            rBatch = window.db.batch();
-                            rCount = 0;
-                        }
-                    }
-                    if (rCount > 0) await rBatch.commit();
-                }
-                studentReportUploadOk = true;
-                console.log(`[DeviceSync] ✅ تم رفع ${srTotal} سجل لـ root collections (روابط الطلاب)`);
-            }
-        } catch (rootErr) {
-            console.error('[DeviceSync] خطأ في رفع البيانات لـ root collections:', rootErr);
-            showNotification('⚠️ روابط الطلاب: ' + (rootErr.message || 'خطأ في الرفع') + ' — حاول مجدداً.', 'warning');
-        }
-
         _dsSaveTime('payments_up');
         RBAC.log('upload_full_data_cloud', `${totalRecords} سجل من ${DEVICE_SYNC_FULL_TABLES.length} جدول، ${uploadedTombstoneKeys.size} حذف مزامَن`);
-        const srNote = studentReportUploadOk ? ' — روابط الطلاب جاهزة ✅' : ' — ⚠️ روابط الطلاب لم تُرفع';
+        const srNote = rootState ? ` — روابط الطلاب جاهزة ✅ (${rootState.total} سجل)` : ' — ⚠️ روابط الطلاب لم تُرفع';
         showNotification(
             `✅ تم رفع جميع بيانات البرنامج إلى السحابة بنجاح! (${totalRecords} سجل)${srNote}`,
             'success'
@@ -12110,7 +12125,7 @@ async function downloadPaymentsFromCloud() {
         const localTombstones = _getLocalTombstones();
         const deletedKeys = new Set(localTombstones.map(t => `${t.table}:${t.id}`));
 
-        for (const tableName of DEVICE_SYNC_FULL_TABLES) {
+        await Promise.all(DEVICE_SYNC_FULL_TABLES.map(async (tableName) => {
             try {
                 const snapshot = await firestore
                     .collection('device_full_sync')
@@ -12118,7 +12133,7 @@ async function downloadPaymentsFromCloud() {
                     .collection('records')
                     .get();
 
-                if (snapshot.empty) continue;
+                if (snapshot.empty) return;
 
                 const cloudRows = [];
                 for (const doc of snapshot.docs) {
@@ -12151,7 +12166,7 @@ async function downloadPaymentsFromCloud() {
                 console.error(`[DeviceSync] downloadFullData table failed: ${tableName}`, tableError);
                 tableSummary[tableName] = { added: 0, updated: 0, skipped: 0, failed: true };
             }
-        }
+        }));
 
         // ── 3. استلام الإعدادات وقائمة الصفوف ──
         try {
